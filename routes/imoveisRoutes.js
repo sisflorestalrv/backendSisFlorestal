@@ -293,4 +293,108 @@ router.get("/verificarCodigoCC", (req, res) => {
   });
 });
 
+// Rota para editar as informações de um imóvel
+router.put("/imoveis/:id", (req, res) => {
+  const { id } = req.params; // Captura o ID do imóvel
+  const {
+    descricao,
+    area_imovel,
+    area_plantio,
+    especie,
+    origem,
+    num_arvores_plantadas,
+    num_arvores_cortadas,
+    num_arvores_remanescentes,
+    num_arvores_por_hectare,
+    matricula,
+    numero_ccir,
+    numero_itr,
+    proprietario,
+    arrendatario,
+    municipio,
+    localidade,
+    altura_desrama,
+    numero_car,
+    codigo_cc,
+    data_plantio,
+    data_contrato,
+    vencimento_contrato,
+    tipo_imovel, // Adiciona o tipo de imóvel (próprio ou arrendado)
+  } = req.body; // Captura os dados do imóvel do corpo da requisição
+
+  // Define os valores de arrendatario, data_contrato e vencimento_contrato com base no tipo de imóvel
+  const arrendatarioFinal = tipo_imovel === "arrendado" ? arrendatario : null;
+  const dataContratoFinal = tipo_imovel === "arrendado" ? data_contrato : null;
+  const vencimentoContratoFinal =
+    tipo_imovel === "arrendado" ? vencimento_contrato : null;
+
+  // SQL para atualizar as informações do imóvel
+  const sql = `
+    UPDATE imoveis
+    SET
+      descricao = ?,
+      area_imovel = ?,
+      area_plantio = ?,
+      especie = ?,
+      origem = ?,
+      num_arvores_plantadas = ?,
+      num_arvores_cortadas = ?,
+      num_arvores_remanescentes = ?,
+      num_arvores_por_hectare = ?,
+      matricula = ?,
+      numero_ccir = ?,
+      numero_itr = ?,
+      proprietario = ?,
+      arrendatario = ?,
+      municipio = ?,
+      localidade = ?,
+      altura_desrama = ?,
+      numero_car = ?,
+      codigo_cc = ?,
+      data_plantio = COALESCE(?, data_plantio),
+      data_contrato = COALESCE(?, data_contrato),
+      vencimento_contrato = COALESCE(?, vencimento_contrato)
+    WHERE id = ?
+  `;
+
+  // Valores a serem atualizados
+  const values = [
+    descricao,
+    area_imovel,
+    area_plantio,
+    especie,
+    origem,
+    num_arvores_plantadas,
+    num_arvores_cortadas,
+    num_arvores_remanescentes,
+    num_arvores_por_hectare,
+    matricula,
+    numero_ccir,
+    numero_itr,
+    proprietario,
+    arrendatarioFinal, // Usa o valor ajustado
+    municipio,
+    localidade,
+    altura_desrama,
+    numero_car,
+    codigo_cc,
+    data_plantio,
+    dataContratoFinal, // Usa o valor ajustado
+    vencimentoContratoFinal, // Usa o valor ajustado
+    id,
+  ];
+
+  // Executa a query
+  db.query(sql, values, (err, result) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Imóvel não encontrado." });
+    }
+    res.status(200).json({ message: "Imóvel atualizado com sucesso." });
+  });
+});
+
+
 module.exports = router;
