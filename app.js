@@ -13,6 +13,7 @@ const despesasRoutes = require("./routes/despesasRoutes");
 const desramasRoutes = require("./routes/desramasRoutes");
 const desbastesRoutes = require("./routes/desbastesRoutes");
 const notasRoutes = require("./routes/notasRoutes");
+const inventarioRoutes = require("./routes/inventarioRoutes");
 
 // Criação das pastas necessárias
 const uploadsDir = path.join(__dirname, "uploads");
@@ -57,6 +58,8 @@ app.use("/api", desbastesRoutes);
 
 // Rotas de notas
 app.use("/api", notasRoutes);
+
+app.use('/api', inventarioRoutes);
 
 // Inicia o servidor
 app.listen(port, () => {
