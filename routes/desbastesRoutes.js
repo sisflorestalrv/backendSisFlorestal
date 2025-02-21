@@ -1,4 +1,3 @@
-// routes/desbastesRoutes.js
 const express = require("express");
 const router = express.Router();
 const db = require("../config/db");
@@ -68,13 +67,11 @@ router.get("/imoveis/:id/desbastes/previsoes", (req, res) => {
       return res.status(500).json({ error: err.message });
     }
 
-    if (results.length === 0) {
-      return res.status(404).json({ error: "Nenhuma previsão encontrada para este imóvel." });
-    }
-
-    res.status(200).json(results);
+    res.status(200).json(results); // Sempre retorna um array (pode ser vazio)
   });
 });
+
+
 
 // Rota para atualizar uma previsão de desbaste
 router.put("/desbastes/:id", (req, res) => {
@@ -82,37 +79,53 @@ router.put("/desbastes/:id", (req, res) => {
   const { numero, data, arvores_cortadas, lenha, toretes, toras_20_25cm, toras_25_33cm, toras_acima_33cm, preco_lenha, preco_toretes, preco_toras_20_25cm, preco_toras_25_33cm, preco_toras_acima_33cm, valor_extracao } = req.body;
 
   if (!numero || !data || !arvores_cortadas || !lenha || !toretes || !toras_20_25cm || !toras_25_33cm || !toras_acima_33cm || !preco_lenha || !preco_toretes || !preco_toras_20_25cm || !preco_toras_25_33cm || !preco_toras_acima_33cm || !valor_extracao) {
-    return res.status(400).json({ error: "Todos os campos (número, data, árvores cortadas, lenha, toretes, toras, preços, valor de extração) são obrigatórios." });
+    return res.status(400).json({ error: "Todos os campos são obrigatórios." });
   }
 
-  const updateDesbasteSql = `
-    UPDATE desbaste
-    SET numero = ?, data = ?, arvores_cortadas = ?, lenha = ?, toretes = ?, toras_20_25cm = ?, toras_25_33cm = ?, toras_acima_33cm = ?, preco_lenha = ?, preco_toretes = ?, preco_toras_20_25cm = ?, preco_toras_25_33cm = ?, preco_toras_acima_33cm = ?, valor_extracao = ?
-    WHERE id = ?
-  `;
+  // Obter o imovel_id pelo id do desbaste
+  const getImovelIdSql = `SELECT imovel_id FROM desbaste WHERE id = ?`;
+  db.query(getImovelIdSql, [id], (err, result) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (result.length === 0) return res.status(404).json({ error: "Desbaste não encontrado." });
 
-  db.query(updateDesbasteSql, [
-    numero, 
-    data, 
-    arvores_cortadas, 
-    lenha, 
-    toretes, 
-    toras_20_25cm, 
-    toras_25_33cm, 
-    toras_acima_33cm, 
-    preco_lenha, 
-    preco_toretes, 
-    preco_toras_20_25cm, 
-    preco_toras_25_33cm, 
-    preco_toras_acima_33cm, 
-    valor_extracao, 
-    id
-  ], (err, result) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
+    const imovelId = result[0].imovel_id;
 
-    res.status(200).json({ message: "Previsão de desbaste atualizada com sucesso!" });
+    // Obter dados do imóvel
+    const getImovelSql = `SELECT num_arvores_cortadas, num_arvores_plantadas, area_plantio FROM imoveis WHERE id = ?`;
+    db.query(getImovelSql, [imovelId], (err, result) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (result.length === 0) return res.status(404).json({ error: "Imóvel não encontrado." });
+
+      const { num_arvores_cortadas, num_arvores_plantadas, area_plantio } = result[0];
+      const novasArvoresCortadas = Number(num_arvores_cortadas) + Number(arvores_cortadas);
+      const arvoresRemanescentes = Number(num_arvores_plantadas) - novasArvoresCortadas;
+      const num_arvores_por_hectare = area_plantio > 0 ? arvoresRemanescentes / area_plantio : 0;
+
+      // Atualizar a tabela imoveis
+      const updateImoveisSql = `
+        UPDATE imoveis
+        SET num_arvores_cortadas = ?, num_arvores_remanescentes = ?, num_arvores_por_hectare = ?
+        WHERE id = ?
+      `;
+      db.query(updateImoveisSql, [novasArvoresCortadas, arvoresRemanescentes, num_arvores_por_hectare, imovelId], (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+
+        // Atualizar a previsão de desbaste
+        const updateDesbasteSql = `
+          UPDATE desbaste
+          SET numero = ?, data = ?, arvores_cortadas = ?, lenha = ?, toretes = ?, toras_20_25cm = ?, toras_25_33cm = ?, toras_acima_33cm = ?, preco_lenha = ?, preco_toretes = ?, preco_toras_20_25cm = ?, preco_toras_25_33cm = ?, preco_toras_acima_33cm = ?, valor_extracao = ?
+          WHERE id = ?
+        `;
+        db.query(updateDesbasteSql, [
+          numero, data, arvores_cortadas, lenha, toretes, toras_20_25cm, toras_25_33cm, toras_acima_33cm,
+          preco_lenha, preco_toretes, preco_toras_20_25cm, preco_toras_25_33cm, preco_toras_acima_33cm,
+          valor_extracao, id
+        ], (err) => {
+          if (err) return res.status(500).json({ error: err.message });
+          res.status(200).json({ message: "Previsão de desbaste atualizada com sucesso!" });
+        });
+      });
+    });
   });
 });
 
@@ -154,9 +167,11 @@ router.get("/imoveis/:id/desbastes", (req, res) => {
 });
 
 // Rota para excluir um desbaste
+// Rota para excluir um desbaste
 router.delete("/imoveis/:imovelId/desbastes/:desbasteId", (req, res) => {
   const { imovelId, desbasteId } = req.params;
 
+  // 1. Buscar os dados do desbaste que será excluído
   const selectDesbasteSql = "SELECT arvores_cortadas FROM desbaste WHERE id = ?";
   
   db.query(selectDesbasteSql, [desbasteId], (err, results) => {
@@ -170,35 +185,65 @@ router.delete("/imoveis/:imovelId/desbastes/:desbasteId", (req, res) => {
 
     const arvoresCortadas = results[0].arvores_cortadas;
 
-    const updateArvoresCortadasSql = `
-      UPDATE imoveis
-      SET num_arvores_cortadas = num_arvores_cortadas - ?
+    // 2. Buscar os dados atuais do imóvel
+    const getImovelSql = `
+      SELECT num_arvores_cortadas, num_arvores_plantadas, area_plantio 
+      FROM imoveis 
       WHERE id = ?
     `;
-    
-    const deleteDesbasteSql = "DELETE FROM desbaste WHERE id = ?";
-
-    db.beginTransaction((err) => {
+    db.query(getImovelSql, [imovelId], (err, imovelResults) => {
       if (err) {
-        return res.status(500).json({ error: "Erro ao iniciar transação." });
+        return res.status(500).json({ error: err.message });
       }
 
-      db.query(updateArvoresCortadasSql, [arvoresCortadas, imovelId], (err) => {
+      if (imovelResults.length === 0) {
+        return res.status(404).json({ message: "Imóvel não encontrado." });
+      }
+
+      const { num_arvores_cortadas, num_arvores_plantadas, area_plantio } = imovelResults[0];
+
+      // 3. Reverter as operações feitas na rota de atualização
+      const novasArvoresCortadas = Number(num_arvores_cortadas) - Number(arvoresCortadas); // Subtrai as árvores cortadas
+      const arvoresRemanescentes = Number(num_arvores_plantadas) - novasArvoresCortadas; // Recalcula as árvores remanescentes
+      const numArvoresPorHectare = area_plantio > 0 ? arvoresRemanescentes / area_plantio : 0; // Recalcula o número de árvores por hectare
+
+      // 4. Atualizar o imóvel com os novos valores
+      const updateImoveisSql = `
+        UPDATE imoveis
+        SET 
+          num_arvores_cortadas = ?, 
+          num_arvores_remanescentes = ?, 
+          num_arvores_por_hectare = ?
+        WHERE id = ?
+      `;
+
+      // 5. Iniciar uma transação para garantir atomicidade
+      db.beginTransaction((err) => {
         if (err) {
-          return db.rollback(() => res.status(500).json({ error: err.message }));
+          return res.status(500).json({ error: "Erro ao iniciar transação." });
         }
 
-        db.query(deleteDesbasteSql, [desbasteId], (err) => {
+        // 6. Atualizar o imóvel
+        db.query(updateImoveisSql, [novasArvoresCortadas, arvoresRemanescentes, numArvoresPorHectare, imovelId], (err) => {
           if (err) {
             return db.rollback(() => res.status(500).json({ error: err.message }));
           }
 
-          db.commit((err) => {
+          // 7. Excluir o desbaste
+          const deleteDesbasteSql = "DELETE FROM desbaste WHERE id = ?";
+          db.query(deleteDesbasteSql, [desbasteId], (err) => {
             if (err) {
               return db.rollback(() => res.status(500).json({ error: err.message }));
             }
 
-            res.status(200).json({ message: "Desbaste excluído com sucesso e número de árvores cortadas atualizado." });
+            // 8. Commit da transação
+            db.commit((err) => {
+              if (err) {
+                return db.rollback(() => res.status(500).json({ error: err.message }));
+              }
+
+              res.status(200).json({ message: "Desbaste excluído com sucesso e número de árvores cortadas revertido." });
+            });
           });
         });
       });

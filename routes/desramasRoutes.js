@@ -22,22 +22,20 @@ router.post("/imoveis/:id/desramas/previsao", (req, res) => {
   });
 });
 
-// Rota para obter previsões de desrama de um imóvel específico
 router.get("/imoveis/:id/desramas/previsoes", (req, res) => {
   const { id } = req.params;
 
   const selectPrevisoesSql = `SELECT * FROM desramas WHERE imovel_id = ? AND altura IS NULL AND data IS NULL AND numero IS NULL AND previsao IS NOT NULL`;
-  
+
   db.query(selectPrevisoesSql, [id], (err, results) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
-    if (results.length === 0) {
-      return res.status(404).json({ error: "Nenhuma previsão encontrada para este imóvel." });
-    }
+    // Em vez de retornar erro 404, retorna lista vazia se não houver previsões
     res.status(200).json(results);
   });
 });
+
 
 // Rota para atualizar uma desrama
 router.put("/desramas/:id", (req, res) => {
