@@ -6,6 +6,12 @@ const fs = require("fs");
 const path = require("path");
 const https = require("https");
 
+// Carregue o certificado e a chave privada
+const options = {
+  key: fs.readFileSync('/etc/letsencrypt/live/srv690508.hstgr.cloud/privkey.pem'),
+  cert: fs.readFileSync('/etc/letsencrypt/live/srv690508.hstgr.cloud/fullchain.pem')
+};
+
 const authMiddleware = require("./auth/authMiddleware");
 const loginController = require("./auth/loginController");
 const imagesRoutes = require("./routes/imagesRoutes"); // Importando as rotas de upload
@@ -62,7 +68,7 @@ app.use('/api', inventarioRoutes);
 
 
 
-// Inicia o servidor
-app.listen(port, () => {
-  console.log(`Servidor rodando na porta ${port}`);
+// Crie o servidor HTTPS
+https.createServer(options, app).listen(5000, () => {
+  console.log('Servidor HTTPS rodando na porta {port}');
 });
