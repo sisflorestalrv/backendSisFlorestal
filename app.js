@@ -7,7 +7,7 @@ const path = require("path");
 
 const authMiddleware = require("./auth/authMiddleware");
 const loginController = require("./auth/loginController");
-const uploadRoutes = require("./routes/uploadRoutes"); // Importando as rotas de upload
+const imagesRoutes = require("./routes/imagesRoutes"); // Importando as rotas de upload
 const imoveisRoutes = require("./routes/imoveisRoutes");
 const despesasRoutes = require("./routes/despesasRoutes");
 const desramasRoutes = require("./routes/desramasRoutes");
@@ -17,10 +17,8 @@ const inventarioRoutes = require("./routes/inventarioRoutes");
 
 // Criação das pastas necessárias
 const uploadsDir = path.join(__dirname, "uploads");
-const mapasDir = path.join(__dirname, "mapas");
-const arquivosDir = path.join(__dirname, "arquivos");
 
-[uploadsDir, mapasDir, arquivosDir].forEach((dir) => {
+[uploadsDir].forEach((dir) => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
     console.log(`Pasta "${dir}" criada com sucesso.`);
@@ -42,7 +40,7 @@ app.get("/api/protected", authMiddleware, (req, res) => {
 app.post("/api/login", loginController.login);
 
 // Rotas de upload
-app.use("/api", uploadRoutes); // Usando as rotas de upload
+app.use("/api", imagesRoutes); // Usando as rotas de upload
 
 // Rotas de imóveis
 app.use("/api", imoveisRoutes);
@@ -60,6 +58,8 @@ app.use("/api", desbastesRoutes);
 app.use("/api", notasRoutes);
 
 app.use('/api', inventarioRoutes);
+
+
 
 // Inicia o servidor
 app.listen(port, () => {
