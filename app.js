@@ -6,10 +6,10 @@ const fs = require("fs");
 const path = require("path");
 const https = require("https");
 
-// Carregue o certificado e a chave privada
+// Configurações para o HTTPS
 const options = {
-  key: fs.readFileSync('/etc/letsencrypt/live/srv690508.hstgr.cloud/privkey.pem'),
-  cert: fs.readFileSync('/etc/letsencrypt/live/srv690508.hstgr.cloud/fullchain.pem')
+key: fs.readFileSync('/etc/letsencrypt/live/srv690508.hstgr.cloud/privkey.pem'),
+cert: fs.readFileSync('/etc/letsencrypt/live/srv690508.hstgr.cloud/fullchain.pem')
 };
 
 const authMiddleware = require("./auth/authMiddleware");
@@ -68,7 +68,9 @@ app.use('/api', inventarioRoutes);
 
 
 
-// Crie o servidor HTTPS
+//app.listen(port, () => {
+//  console.log(`Servidor rodando na porta ${port}`);
+//}
 https.createServer(options, app).listen(5000, () => {
   console.log('Servidor HTTPS rodando na porta {port}');
 });
