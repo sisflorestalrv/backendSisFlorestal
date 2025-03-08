@@ -1,6 +1,7 @@
 const mysql = require("mysql2");
 require("dotenv").config();
 
+// Configuração da conexão com o banco de dados
 const db = mysql.createConnection({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
@@ -16,5 +17,19 @@ db.connect((err) => {
     console.log("Conectado ao banco de dados MySQL");
   }
 });
+
+// Função para manter a conexão ativa
+function keepAlive() {
+  db.query('SELECT 1', (err) => {
+    if (err) {
+      console.error('Erro ao manter a conexão ativa:', err.message);
+    } else {
+      console.log('Conexão com o banco de dados mantida ativa.');
+    }
+  });
+}
+
+// Configura um intervalo para manter a conexão ativa a cada hora
+setInterval(keepAlive, 3600000); // 3600000 ms = 1 hora
 
 module.exports = db;
