@@ -1,4 +1,3 @@
-// app.js
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
@@ -8,8 +7,8 @@ const https = require("https");
 
 // Configurações para o HTTPS
 const options = {
-key: fs.readFileSync('/etc/letsencrypt/live/srv690508.hstgr.cloud/privkey.pem'),
-cert: fs.readFileSync('/etc/letsencrypt/live/srv690508.hstgr.cloud/fullchain.pem')
+  key: fs.readFileSync('/etc/letsencrypt/live/srv690508.hstgr.cloud/privkey.pem'),
+  cert: fs.readFileSync('/etc/letsencrypt/live/srv690508.hstgr.cloud/fullchain.pem')
 };
 
 const authMiddleware = require("./auth/authMiddleware");
@@ -35,24 +34,14 @@ const uploadsDir = path.join(__dirname, "uploads");
 const app = express();
 const port = 5000;
 
-
 app.use(bodyParser.json());
 
 const corsOptions = {
   origin: "https://sisflorestalrioverde.com.br", // Substitua pelo domínio do frontend
- methods: "GET,POST,PUT,DELETE",
- credentials: true,
+  methods: "GET,POST,PUT,DELETE",
+  credentials: true,
 };
-(corsOptions)
-
-//const corsOptions = {
- // origin: "http://localhost:3000", // Permite solicitações do frontend local
- // methods: "GET,POST,PUT,DELETE",
- // credentials: true,
-//};
-
-app.use(cors(corsOptions))
-
+app.use(cors(corsOptions));
 
 // Rotas de autenticação
 app.get("/api/protected", authMiddleware, (req, res) => {
@@ -81,12 +70,6 @@ app.use("/api", notasRoutes);
 
 app.use('/api', inventarioRoutes);
 
-
-
-//app.listen(port, () => {
-//  console.log(`Servidor rodando na porta ${port}`);
-//});
-https.createServer(options, app).listen(5000, () => {
-  console.log('Servidor HTTPS rodando na porta {port}');
-})
-
+https.createServer(options, app).listen(port, () => {
+  console.log(`Servidor HTTPS rodando na porta ${port}`);
+});
