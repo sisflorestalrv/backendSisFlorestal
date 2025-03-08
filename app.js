@@ -36,13 +36,14 @@ const uploadsDir = path.join(__dirname, "uploads");
 const app = express();
 const port = 5000;
 
-// Configuração do banco de dados MySQL
+
 const dbConfig = {
-  host: 'localhost',
-  user: 'root',  // Altere para o seu usuário do MySQL
-  password: '',  // Altere para sua senha do MySQL
-  database: 'sua_base_de_dados',  // Altere para o nome da sua base de dados
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
 };
+
 
 // Função para criar e reconectar com o MySQL
 let dbConnection;
