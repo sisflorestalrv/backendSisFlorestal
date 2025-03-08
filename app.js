@@ -1,4 +1,3 @@
-// app.js
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
@@ -36,14 +35,12 @@ const uploadsDir = path.join(__dirname, "uploads");
 const app = express();
 const port = 5000;
 
-
 const dbConfig = {
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
 };
-
 
 // Função para criar e reconectar com o MySQL
 let dbConnection;
@@ -77,50 +74,46 @@ connectToDatabase();
 // Configuração do Express
 app.use(bodyParser.json());
 
-// Definindo o prefixo para a API (mascara)
-const apiPrefix = '/api/v1';  // Isso oculta as rotas e organiza melhor a estrutura das APIs
-
 // Configuração do CORS
 const corsOptions = {
   origin: "https://sisflorestalrioverde.com.br", // Substitua pelo domínio do frontend
   methods: "GET,POST,PUT,DELETE",
   credentials: true,
 };
-app.use(cors(corsOptions))
+app.use(cors(corsOptions));
 
 // Rotas de autenticação
-app.get(`${apiPrefix}/protected`, authMiddleware, (req, res) => {
+app.get("/protected", authMiddleware, (req, res) => {
   res.json({ message: "Você acessou uma rota protegida!" });
 });
 
-app.post(`${apiPrefix}/login`, loginController.login);
+app.post("/login", loginController.login);
 
 // Rotas de upload
-app.use(apiPrefix, imagesRoutes); // Usando as rotas de upload
+app.use(imagesRoutes); // Usando as rotas de upload
 
 // Rotas de imóveis
-app.use(apiPrefix, imoveisRoutes);
+app.use(imoveisRoutes);
 
 // Rotas de despesas
-app.use(apiPrefix, despesasRoutes);
+app.use(despesasRoutes);
 
 // Rotas de desramas
-app.use(apiPrefix, desramasRoutes);
+app.use(desramasRoutes);
 
 // Rotas de desbaste
-app.use(apiPrefix, desbastesRoutes);
+app.use(desbastesRoutes);
 
 // Rotas de notas
-app.use(apiPrefix, notasRoutes);
+app.use(notasRoutes);
 
 // Rota de inventário
-app.use(apiPrefix, inventarioRoutes);
+app.use(inventarioRoutes);
 
 // Servidor HTTPS
 https.createServer(options, app).listen(port, () => {
   console.log(`Servidor HTTPS rodando na porta ${port}`);
-})
-
+});
 
 // // app.js
 // const express = require("express");
