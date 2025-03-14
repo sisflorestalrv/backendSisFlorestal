@@ -53,7 +53,7 @@ const mapasDir = path.join(__dirname, "mapas");
 const app = express();
 const port = 5000;
 
-app.use(bodyParser.json());a
+app.use(bodyParser.json());
 
 const corsOptions = {
   origin: "https://sisflorestalrioverde.com.br", // Substitua pelo domínio do frontend
