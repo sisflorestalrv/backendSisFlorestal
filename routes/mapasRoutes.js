@@ -5,7 +5,6 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
 
-// Configuração do Multer para o upload de mapas
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadPath = path.join(__dirname, '..', 'uploads', 'mapas'); // Pasta na raiz
@@ -18,6 +17,7 @@ const storage = multer.diskStorage({
     cb(null, Date.now() + path.extname(file.originalname)); // Nome único para o mapa
   },
 });
+
 
 const upload = multer({ storage: storage });
 
@@ -92,7 +92,7 @@ router.delete("/imoveis/:id/mapas/:mapaId", (req, res) => {
 });
 
 // Rota para baixar o mapa
-router.get("/mapas/download/:filename", (req, res) => {
+router.get((req, res) => {
   const { filename } = req.params;
   const filePath = path.join(__dirname, '..', 'uploads', 'mapas', filename);
   
