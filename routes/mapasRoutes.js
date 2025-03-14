@@ -5,6 +5,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
 
+// Configuração do armazenamento para uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadPath = path.join(__dirname, '..', 'uploads', 'mapas'); // Pasta na raiz
@@ -17,7 +18,6 @@ const storage = multer.diskStorage({
     cb(null, Date.now() + path.extname(file.originalname)); // Nome único para o mapa
   },
 });
-
 
 const upload = multer({ storage: storage });
 
@@ -92,11 +92,13 @@ router.delete("/imoveis/:id/mapas/:mapaId", (req, res) => {
 });
 
 // Rota para baixar o mapa
-router.get((req, res) => {
+router.get("/mapas/:filename", (req, res) => {
   const { filename } = req.params;
   const filePath = path.join(__dirname, '..', 'uploads', 'mapas', filename);
-  
+
   if (fs.existsSync(filePath)) {
+    // Configurando o cabeçalho para forçar o download do arquivo
+    res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
     res.download(filePath); // Permite o download do arquivo
   } else {
     res.status(404).json({ error: "Arquivo não encontrado." });
