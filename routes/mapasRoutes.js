@@ -1,14 +1,18 @@
-const express = require("express");
+const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
+const express = require('express');
 const router = express.Router();
-const multer = require("multer");
-const path = require("path");
-const fs = require("fs");
-const db = require("../config/db");
+const db = require('../config/db');
 
 // Configuração do Multer para o upload de mapas
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "uploads/mapas/"); // Pasta onde os mapas serão salvos
+    const uploadPath = path.join(__dirname, '..', 'uploads', 'mapas'); // Pasta na raiz
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true }); // Cria a pasta se não existir
+    }
+    cb(null, uploadPath); // Destino dos uploads
   },
   filename: (req, file, cb) => {
     cb(null, Date.now() + path.extname(file.originalname)); // Nome único para o mapa
@@ -59,7 +63,6 @@ router.get("/imoveis/:id/mapas", (req, res) => {
 router.delete("/imoveis/:id/mapas/:mapaId", (req, res) => {
   const { id, mapaId } = req.params;
 
-  // Primeiro, busque o caminho do mapa na base de dados
   const selectSql = "SELECT caminho FROM mapas WHERE id = ? AND imovel_id = ?";
   db.query(selectSql, [mapaId, id], (err, results) => {
     if (err) {
@@ -70,10 +73,6 @@ router.delete("/imoveis/:id/mapas/:mapaId", (req, res) => {
     }
 
     const filePath = results[0].caminho;
-
-    // Exclua o mapa do sistema de arquivos (se necessário)
-    const fs = require('fs');
-    const path = require('path');
     const fileFullPath = path.join(__dirname, filePath);
 
     fs.unlink(fileFullPath, (unlinkErr) => {
@@ -81,17 +80,27 @@ router.delete("/imoveis/:id/mapas/:mapaId", (req, res) => {
         return res.status(500).json({ error: "Erro ao excluir o mapa." });
       }
 
-      // Após excluir o mapa, remova o registro do banco de dados
       const deleteSql = "DELETE FROM mapas WHERE id = ?";
       db.query(deleteSql, [mapaId], (deleteErr) => {
         if (deleteErr) {
           return res.status(500).json({ error: deleteErr.message });
         }
-
         res.status(200).json({ message: "Mapa excluído com sucesso!" });
       });
     });
   });
+});
+
+// Rota para baixar o mapa
+router.get("/mapas/download/:filename", (req, res) => {
+  const { filename } = req.params;
+  const filePath = path.join(__dirname, '..', 'uploads', 'mapas', filename);
+  
+  if (fs.existsSync(filePath)) {
+    res.download(filePath); // Permite o download do arquivo
+  } else {
+    res.status(404).json({ error: "Arquivo não encontrado." });
+  }
 });
 
 module.exports = router;
