@@ -28,7 +28,6 @@ const uploadsDir = path.join(__dirname, "uploads");
 const arquivosDir = path.join(__dirname, "arquivos");
 const mapasDir = path.join(__dirname, "mapas");
 
-
 [uploadsDir].forEach((dir) => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
