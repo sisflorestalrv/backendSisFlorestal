@@ -1,35 +1,35 @@
 const mysql = require("mysql2");
 require("dotenv").config();
 
-// Configuração da conexão com o banco de dados
-const db = mysql.createConnection({
+// Configuração do pool de conexões com o banco de dados
+const pool = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_DATABASE,
+  waitForConnections: true, // Espera por uma conexão se todas estiverem em uso
+  connectionLimit: 10,      // Número máximo de conexões no pool
+  queueLimit: 0             // Fila de espera ilimitada
 });
 
-// Verifica a conexão com o banco
-db.connect((err) => {
+// O pool de conexões gerencia as conexões automaticamente,
+// incluindo a reconexão em caso de queda.
+
+// Verifica se o pool foi criado corretamente
+pool.getConnection((err, connection) => {
   if (err) {
     console.error("Erro ao conectar ao banco de dados:", err.message);
+    if (err.code === 'PROTOCOL_CONNECTION_LOST') {
+      console.error('A conexão com o banco de dados foi perdida.');
+    } else if (err.code === 'ER_CON_COUNT_ERROR') {
+      console.error('O banco de dados tem muitas conexões.');
+    } else if (err.code === 'ECONNREFUSED') {
+      console.error('A conexão com o banco de dados foi recusada.');
+    }
   } else {
-    console.log("Conectado ao banco de dados MySQL");
+    console.log("Conectado ao banco de dados MySQL com sucesso usando um pool de conexões.");
+    connection.release(); // Libera a conexão de volta para o pool
   }
 });
 
-// Função para manter a conexão ativa
-function keepAlive() {
-  db.query('SELECT 1', (err) => {
-    if (err) {
-      console.error('Erro ao manter a conexão ativa:', err.message);
-    } else {
-      console.log('Conexão com o banco de dados mantida ativa.');
-    }
-  });
-}
-
-// Configura um intervalo para manter a conexão ativa a cada hora
-setInterval(keepAlive, 3600000); // 3600000 ms = 1 hora
-
-module.exports = db;
+module.exports = pool;
