@@ -118,4 +118,77 @@ router.delete("/despesas/:id", (req, res) => {
   });
 });
 
+// Rota para ATUALIZAR uma despesa específica
+router.put("/despesas/:id", (req, res) => {
+  const { id } = req.params;
+  const {
+    fornecedor,
+    produto,
+    unidade,
+    quantidade,
+    valor_unitario,
+    total,
+    tipo_de_despesa,
+    validade,
+  } = req.body;
+
+  // Validação básica para garantir que campos essenciais não estão faltando
+  if (
+    !fornecedor ||
+    !produto ||
+    !unidade ||
+    quantidade === undefined ||
+    valor_unitario === undefined ||
+    total === undefined ||
+    !tipo_de_despesa ||
+    !validade
+  ) {
+    return res.status(400).json({ error: "Todos os campos editáveis são obrigatórios." });
+  }
+
+  const sql = `
+    UPDATE despesas SET
+      fornecedor = ?,
+      produto = ?,
+      unidade = ?,
+      quantidade = ?,
+      valor_unitario = ?,
+      total = ?,
+      tipo_de_despesa = ?,
+      validade = ?
+    WHERE id = ?
+  `;
+
+  const values = [
+    fornecedor,
+    produto,
+    unidade,
+    quantidade,
+    valor_unitario,
+    total,
+    tipo_de_despesa,
+    validade,
+    id,
+  ];
+
+  db.query(sql, values, (err, result) => {
+    if (err) {
+      console.error("Erro ao atualizar despesa:", err);
+      return res.status(500).json({ error: err.message });
+    }
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Despesa não encontrada." });
+    }
+    
+    // Retorna a despesa atualizada
+    const getUpdatedSql = `SELECT * FROM despesas WHERE id = ?`;
+    db.query(getUpdatedSql, [id], (err, updatedResult) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.status(200).json(updatedResult[0]);
+    });
+  });
+});
+
 module.exports = router;
