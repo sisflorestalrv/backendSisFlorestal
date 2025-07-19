@@ -6,7 +6,7 @@
     "scripts": {
     "start": "node app.js",
     "dev": "cross-env NODE_ENV=development nodemon app.js",
-    "prod": "cross-env NODE_ENV=production node app.js"
+    "prod": "NODE_ENV=production node app.js"
 },
     "keywords": [],
     "author": "Seu Nome",
