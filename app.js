@@ -100,8 +100,10 @@ https.createServer(options, app).listen(port, () => {
   console.log(`Servidor HTTPS rodando na porta ${port}`);
 });
 
-// --- Local ---
+
 /*
+// --- Local ---
+
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
