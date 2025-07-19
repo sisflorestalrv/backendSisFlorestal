@@ -12,10 +12,6 @@ const pool = mysql.createPool({
   queueLimit: 0
 });
 
-// O pool de conexões gerencia as conexões automaticamente,
-// incluindo a reconexão em caso de queda.
-
-// Verifica se o pool foi criado corretamente
 pool.getConnection((err, connection) => {
   if (err) {
     console.error("Erro ao conectar ao banco de dados:", err.message);
@@ -28,7 +24,7 @@ pool.getConnection((err, connection) => {
     }
   } else {
     console.log("Conectado ao banco de dados MySQL com sucesso usando um pool de conexões.");
-    connection.release(); // Libera a conexão de volta para o pool
+    connection.release(); 
   }
 });
 

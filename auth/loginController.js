@@ -20,9 +20,7 @@ const loginController = {
 
       const user = results[0];
 
-      // Verifica a senha
       if (password === user.password) {
-        // Idealmente, utilize bcrypt para armazenar senhas
         return res.status(200).json({ message: "Login bem-sucedido" });
       } else {
         return res.status(401).json({ error: "Usuário ou senha incorretos" });
