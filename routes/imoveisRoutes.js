@@ -169,96 +169,106 @@ router.put("/imoveis/:id", (req, res) => {
   );
 });
 
-// Rota para excluir um imóvel pelo ID
+// Rota para excluir um imóvel pelo ID (VERSÃO CORRIGIDA COM TRANSAÇÃO)
 router.delete("/imoveis/:id", (req, res) => {
   const { id } = req.params;
 
-  // Verificar se o imóvel existe
-  const checkSql = "SELECT * FROM imoveis WHERE id = ?";
-  db.query(checkSql, [id], (err, results) => {
+  // 1. Pegar uma conexão da pool
+  db.getConnection((err, connection) => {
     if (err) {
-      return res.status(500).json({ error: err.message });
+      console.error("Erro ao obter conexão do pool:", err);
+      return res.status(500).json({ error: "Erro interno do servidor." });
     }
 
-    if (results.length === 0) {
-      return res.status(404).json({ error: "Imóvel não encontrado." });
-    }
-
-    // Excluir registros associados ao imóvel, como imagens, despesas, etc.
-    const deleteImagesSql = "DELETE FROM imagens WHERE imovel_id = ?";
-    const deleteDespesasSql = "DELETE FROM despesas WHERE imovel_id = ?";
-    const deleteDesramasSql = "DELETE FROM desramas WHERE imovel_id = ?";
-    const deleteDesbastesSql = "DELETE FROM desbaste WHERE imovel_id = ?";
-    const deleteInventarioSql = "DELETE FROM inventario WHERE imovel_id = ?";
-    const deleteImovelSql = "DELETE FROM imoveis WHERE id = ?";
-
-    // Iniciar transação
-    db.beginTransaction((transactionErr) => {
+    // 2. Iniciar a transação na conexão específica
+    connection.beginTransaction((transactionErr) => {
       if (transactionErr) {
+        connection.release(); // Sempre libere a conexão
         return res.status(500).json({ error: "Erro ao iniciar transação." });
       }
 
-      // Excluir imagens associadas
-      db.query(deleteImagesSql, [id], (imageErr) => {
-        if (imageErr) {
-          return db.rollback(() =>
-            res.status(500).json({ error: imageErr.message })
-          );
+      // Funções de callback para os deletes em sequência
+      const deleteImages = (callback) => {
+        connection.query("DELETE FROM imagens WHERE imovel_id = ?", [id], callback);
+      };
+      const deleteDespesas = (callback) => {
+        connection.query("DELETE FROM despesas WHERE imovel_id = ?", [id], callback);
+      };
+      const deleteDesramas = (callback) => {
+        connection.query("DELETE FROM desramas WHERE imovel_id = ?", [id], callback);
+      };
+      const deleteDesbastes = (callback) => {
+        connection.query("DELETE FROM desbaste WHERE imovel_id = ?", [id], callback);
+      };
+      const deleteInventario = (callback) => {
+        connection.query("DELETE FROM inventario WHERE imovel_id = ?", [id], callback);
+      };
+      const deleteImovel = (callback) => {
+        connection.query("DELETE FROM imoveis WHERE id = ?", [id], callback);
+      };
+
+      // 3. Executar todas as queries em sequência dentro da transação
+      deleteImages((err) => {
+        if (err) {
+          return connection.rollback(() => {
+            connection.release();
+            res.status(500).json({ error: "Erro ao excluir imagens." });
+          });
         }
-
-        // Excluir despesas associadas
-        db.query(deleteDespesasSql, [id], (despesaErr) => {
-          if (despesaErr) {
-            return db.rollback(() =>
-              res.status(500).json({ error: despesaErr.message })
-            );
+        deleteDespesas((err) => {
+          if (err) {
+            return connection.rollback(() => {
+              connection.release();
+              res.status(500).json({ error: "Erro ao excluir despesas." });
+            });
           }
-
-          // Excluir desramas associadas
-          db.query(deleteDesramasSql, [id], (desramaErr) => {
-            if (desramaErr) {
-              return db.rollback(() =>
-                res.status(500).json({ error: desramaErr.message })
-              );
+          deleteDesramas((err) => {
+            if (err) {
+              return connection.rollback(() => {
+                connection.release();
+                res.status(500).json({ error: "Erro ao excluir desramas." });
+              });
             }
-
-            // Excluir desbastes associados
-            db.query(deleteDesbastesSql, [id], (desbasteErr) => {
-              if (desbasteErr) {
-                return db.rollback(() =>
-                  res.status(500).json({ error: desbasteErr.message })
-                );
+            deleteDesbastes((err) => {
+              if (err) {
+                return connection.rollback(() => {
+                  connection.release();
+                  res.status(500).json({ error: "Erro ao excluir desbastes." });
+                });
               }
-
-              // Excluir inventário associado
-              db.query(deleteInventarioSql, [id], (inventarioErr) => {
-                if (inventarioErr) {
-                  return db.rollback(() =>
-                    res.status(500).json({ error: inventarioErr.message })
-                  );
+              deleteInventario((err) => {
+                if (err) {
+                  return connection.rollback(() => {
+                    connection.release();
+                    res.status(500).json({ error: "Erro ao excluir inventário." });
+                  });
                 }
-
-                // Excluir o imóvel
-                db.query(deleteImovelSql, [id], (imovelErr) => {
-                  if (imovelErr) {
-                    return db.rollback(() =>
-                      res.status(500).json({ error: imovelErr.message })
-                    );
+                deleteImovel((err, result) => {
+                  if (err) {
+                    return connection.rollback(() => {
+                      connection.release();
+                      res.status(500).json({ error: "Erro ao excluir o imóvel." });
+                    });
+                  }
+                  if (result.affectedRows === 0) {
+                      return connection.rollback(() => {
+                          connection.release();
+                          res.status(404).json({ message: "Imóvel não encontrado." });
+                      });
                   }
 
-                  // Confirmar transação
-                  db.commit((commitErr) => {
+                  // 4. Se tudo deu certo, comitar a transação
+                  connection.commit((commitErr) => {
                     if (commitErr) {
-                      return db.rollback(() =>
-                        res
-                          .status(500)
-                          .json({ error: "Erro ao confirmar transação." })
-                      );
+                      return connection.rollback(() => {
+                        connection.release();
+                        res.status(500).json({ error: "Erro ao confirmar a exclusão." });
+                      });
                     }
 
-                    res.status(200).json({
-                      message: "Imóvel e registros associados excluídos com sucesso.",
-                    });
+                    // 5. Liberar a conexão de volta para a pool
+                    connection.release();
+                    res.status(200).json({ message: "Imóvel e registros associados excluídos com sucesso." });
                   });
                 });
               });

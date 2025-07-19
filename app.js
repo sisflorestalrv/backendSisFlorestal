@@ -1,108 +1,46 @@
-/*const express = require("express");
-const bodyParser = require("body-parser");
-const cors = require("cors");
-const fs = require("fs");
-const path = require("path");
-const https = require("https");
-
-// Configurações para o HTTPS
-const options = {
-  key: fs.readFileSync('/etc/letsencrypt/live/srv690508.hstgr.cloud/privkey.pem'),
-  cert: fs.readFileSync('/etc/letsencrypt/live/srv690508.hstgr.cloud/fullchain.pem')
-};
-
-const authMiddleware = require("./auth/authMiddleware");
-const loginController = require("./auth/loginController");
-const imoveisRoutes = require("./routes/imoveisRoutes");
-const despesasRoutes = require("./routes/despesasRoutes");
-const desramasRoutes = require("./routes/desramasRoutes");
-const desbastesRoutes = require("./routes/desbastesRoutes");
-const notasRoutes = require("./routes/notasRoutes");
-const inventarioRoutes = require("./routes/inventarioRoutes");
-
-const app = express();
-const port = 5000;
-
-app.use(bodyParser.json());
-
-const corsOptions = {
-  origin: "https://sisflorestalrioverde.com.br", // Substitua pelo domínio do frontend
-  methods: "GET,POST,PUT,DELETE",
-  credentials: true,
-};
-
-app.use(cors(corsOptions));
-
-app.get("/api/protected", authMiddleware, (req, res) => {
-  res.json({ message: "Você acessou uma rota protegida!" });
-});
-
-app.post("/api/login", loginController.login);
-
-app.use("/api", imoveisRoutes);
-
-app.use("/api", despesasRoutes);
-
-app.use("/api", desramasRoutes);
-
-app.use("/api", desbastesRoutes);
-
-app.use("/api", notasRoutes);
-
-app.use('/api', inventarioRoutes);
-
-https.createServer(options, app).listen(port, () => {
-  console.log(`Servidor HTTPS rodando na porta ${port}`);
-});
-*/
-
-// --- Local ---
+require("dotenv").config(); 
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
 const http = require("http");
+const https = require("https");
+const fs = require("fs");
+const path = require("path");
 
-const authMiddleware = require("./auth/authMiddleware");
-const loginController = require("./auth/loginController");
-const imoveisRoutes = require("./routes/imoveisRoutes");
-const despesasRoutes = require("./routes/despesasRoutes");
-const desramasRoutes = require("./routes/desramasRoutes");
-const desbastesRoutes = require("./routes/desbastesRoutes");
-const notasRoutes = require("./routes/notasRoutes");
-const inventarioRoutes = require("./routes/inventarioRoutes");
+const apiRoutes = require("./routes/index");
 
 const app = express();
-const port = 5000;
+const port = process.env.PORT || 5000;
 
 app.use(bodyParser.json());
 
 const corsOptions = {
-  origin: "http://localhost:3000", 
+  origin: process.env.NODE_ENV === "production" 
+    ? "https://sisflorestalrioverde.com.br" 
+    : "http://localhost:3000",
   methods: "GET,POST,PUT,DELETE",
   credentials: true,
 };
 app.use(cors(corsOptions));
 
+app.use("/api", apiRoutes);
 
-app.get("/api/protected", authMiddleware, (req, res) => {
-  res.json({ message: "Você acessou uma rota protegida!" });
-});
+if (process.env.NODE_ENV === "production") {
+  try {
+    const options = {
+      key: fs.readFileSync(process.env.SSL_KEY_PATH), 
+      cert: fs.readFileSync(process.env.SSL_CERT_PATH), 
+    };
 
-app.post("/api/login", loginController.login);
+    https.createServer(options, app).listen(port, () => {
+      console.log(`Servidor HTTPS rodando em produção na porta ${port}`);
+    });
+  } catch (error) {
+    console.error("Erro ao iniciar o servidor HTTPS. Verifique os caminhos dos certificados no seu arquivo .env.", error);
+  }
 
-app.use("/api", imoveisRoutes);
-
-app.use("/api", despesasRoutes);
-
-app.use("/api", desramasRoutes);
-
-app.use("/api", desbastesRoutes);
-
-app.use("/api", notasRoutes);
-
-app.use('/api', inventarioRoutes);
-
-// Criando o servidor HTTP
-http.createServer(app).listen(port, () => {
-  console.log(`Servidor HTTP rodando na porta ${port}`);
-});
+} else {
+  http.createServer(app).listen(port, () => {
+    console.log(`Servidor HTTP rodando em desenvolvimento na porta ${port}`);
+  });
+}

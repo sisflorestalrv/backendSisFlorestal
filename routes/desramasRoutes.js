@@ -103,17 +103,32 @@ router.post("/imoveis/:id/desramas", (req, res) => {
   });
 });
 
-// Rota para listar todas as desramas de um imóvel específico
+// Rota para listar TODAS AS DESRAMAS COMPLETAS de um imóvel específico
 router.get("/imoveis/:id/desramas", (req, res) => {
   const { id } = req.params;
   
-  const sql = "SELECT * FROM desramas WHERE imovel_id = ?";
+  // SQL ajustado para buscar apenas registros onde os campos principais não são nulos
+  const sql = `
+    SELECT * FROM desramas 
+    WHERE imovel_id = ? 
+      AND altura IS NOT NULL 
+      AND data IS NOT NULL 
+      AND numero IS NOT NULL
+  `;
   
   db.query(sql, [id], (err, results) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
-    res.json(results);
+
+    // Se não encontrar nenhum registro completo, retorna um 404 com a mensagem.
+    // Isso corresponde ao comportamento que você está vendo.
+    if (results.length === 0) {
+      return res.status(404).json({ message: "Nenhum registro completo encontrado para este imóvel." });
+    }
+
+    // Se encontrar, envia a lista de desramas completas.
+    res.status(200).json(results);
   });
 });
 
