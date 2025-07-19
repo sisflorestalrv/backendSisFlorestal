@@ -7,9 +7,9 @@ const pool = mysql.createPool({
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_DATABASE,
-  waitForConnections: true, // Espera por uma conexão se todas estiverem em uso
-  connectionLimit: 10,      // Número máximo de conexões no pool
-  queueLimit: 0             // Fila de espera ilimitada
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
 });
 
 // O pool de conexões gerencia as conexões automaticamente,
@@ -32,4 +32,4 @@ pool.getConnection((err, connection) => {
   }
 });
 
-module.exports = pool;
+module.exports = pool.promise();
