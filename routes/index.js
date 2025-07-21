@@ -1,36 +1,28 @@
 const express = require('express');
 const router = express.Router();
 
-// Importando os controladores e middlewares
 const loginController = require("../auth/loginController");
-const authMiddleware = require("../auth/authMiddleware");
+const authMiddleware = require("../auth/authMiddleware"); // Nosso novo middleware inteligente
 
-// Importando os arquivos de rotas
+// Rotas
 const imoveisRoutes = require("./imoveisRoutes");
 const despesasRoutes = require("./despesasRoutes");
-const desramasRoutes = require("./desramasRoutes");
-const desbastesRoutes = require("./desbastesRoutes");
-const notasRoutes = require("./notasRoutes");
-const inventarioRoutes = require("./inventarioRoutes");
+// ... outras rotas
+const userRoutes = require("./userRoutes");
 
-// --- ROTAS PÚBLICAS ---
+// --- ROTA PÚBLICA ---
 router.post("/login", loginController.login);
 
-// --- APLICAÇÃO DO MIDDLEWARE DE AUTENTICAÇÃO ---
-// Todas as rotas abaixo desta linha estarão protegidas
+// --- APLICAÇÃO DO MIDDLEWARE DE AUTENTICAÇÃO GLOBAL ---
+// Todas as rotas abaixo desta linha estarão protegidas pelo nosso novo authMiddleware.
 router.use(authMiddleware);
 
 // --- ROTAS PROTEGIDAS ---
-router.get("/protected", (req, res) => {
-  res.json({ message: "Você acessou uma rota protegida!" });
-});
-
-// Agrupando as rotas
+// Agora todas estas rotas funcionarão com qualquer um dos dois tokens.
 router.use(imoveisRoutes);
 router.use(despesasRoutes);
-router.use(desramasRoutes);
-router.use(desbastesRoutes);
-router.use(notasRoutes);
-router.use(inventarioRoutes);
+// ...
+// E a rota de usuários terá sua camada extra de segurança (adminOnly) aplicada internamente.
+router.use(userRoutes);
 
 module.exports = router;
