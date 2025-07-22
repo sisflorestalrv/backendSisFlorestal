@@ -165,4 +165,38 @@ router.delete("/imoveis/:id/desramas/:desramaId", (req, res) => {
   });
 });
 
+// Rota para buscar todas as previsões de desrama por ano
+router.get("/desramas/previsoes/ano/:ano", (req, res) => {
+  const { ano } = req.params;
+
+  if (!ano || isNaN(parseInt(ano))) {
+    return res.status(400).json({ error: "O ano fornecido é inválido." });
+  }
+
+  // Busca previsões que estão dentro do ano especificado
+  // e junta com a tabela de imóveis para obter os detalhes do imóvel
+  const sql = `
+    SELECT 
+      d.id as previsao_id,
+      d.previsao,
+      i.id as imovel_id,
+      i.codigo_cc,
+      i.descricao,
+      i.proprietario
+    FROM desramas d
+    JOIN imoveis i ON d.imovel_id = i.id
+    WHERE 
+      d.previsao IS NOT NULL AND 
+      YEAR(d.previsao) = ?
+    ORDER BY i.codigo_cc
+  `;
+
+  db.query(sql, [ano], (err, results) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json(results);
+  });
+});
+
 module.exports = router;
