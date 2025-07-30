@@ -13,6 +13,7 @@ const desbastesRoutes = require("./desbastesRoutes");
 const inventarioRoutes = require("./inventarioRoutes");
 const notasRoutes = require("./notasRoutes");
 const userRoutes = require("./userRoutes"); // Rotas de admin
+const veiculosRoutes = require("./veiculosRoutes");
 
 /*
  * =================================================================
@@ -38,6 +39,7 @@ router.use(desramasRoutes);
 router.use(desbastesRoutes);
 router.use(inventarioRoutes);
 router.use(notasRoutes);
+router.use(veiculosRoutes);
 
 // 4. ROTAS DE ADMINISTRAÇÃO (acessíveis apenas por administradores)
 // Este grupo de rotas é para gerenciamento de usuários.
