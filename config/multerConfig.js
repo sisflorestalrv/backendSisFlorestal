@@ -1,40 +1,52 @@
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 
 // Define onde os arquivos serão armazenados
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    // Os arquivos serão salvos na pasta 'public/uploads'
-    // Certifique-se de que essa pasta exista!
-    cb(null, 'public/uploads/');
+    // Cria um caminho dinâmico: public/uploads/imovel_ID/pasta/
+    const { imovelId, folderName } = req.params;
+    const dir = `public/uploads/imovel_${imovelId}/${folderName}`;
+
+    // Cria o diretório se ele não existir
+    fs.mkdirSync(dir, { recursive: true });
+    
+    cb(null, dir);
   },
   filename: (req, file, cb) => {
-    // Cria um nome de arquivo único para evitar conflitos
-    // Ex: 17188241_minhafoto.png
+    // Garante que o nome do arquivo seja único para evitar sobrescrever
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    // Mantém a extensão original do arquivo
     cb(null, uniqueSuffix + path.extname(file.originalname));
   }
 });
 
-// Filtro para aceitar apenas arquivos de imagem
+// Filtro de arquivos mais genérico
 const fileFilter = (req, file, cb) => {
+  // Lista de tipos de arquivo permitidos
   const allowedMimes = [
     'image/jpeg',
-    'image/pjpeg', // para IE
+    'image/pjpeg',
     'image/png',
-    'image/gif'
+    'image/gif',
+    'application/pdf',
+    'video/mp4',
+    'video/quicktime' // Para vídeos .mov
   ];
+
   if (allowedMimes.includes(file.mimetype)) {
-    cb(null, true);
+    cb(null, true); // Aceita o arquivo
   } else {
-    cb(new Error('Tipo de arquivo inválido. Apenas imagens são permitidas.'), false);
+    // Rejeita o arquivo com um erro específico
+    cb(new Error('Tipo de arquivo inválido. Apenas imagens, PDFs e vídeos são permitidos.'), false);
   }
 };
 
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 5 * 1024 * 1024 // Limite de 5MB por arquivo
+    fileSize: 100 * 1024 * 1024 // Aumentado o limite para 20MB para vídeos
   },
   fileFilter: fileFilter
 });
