@@ -2,7 +2,8 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
-const upload = require('../config/multerConfig');
+// <-- MUDANÇA AQUI: Importa a configuração específica para galeria
+const { galleryUpload } = require('../config/multerConfig');
 const fs = require('fs');
 const path = require('path');
 
@@ -19,34 +20,49 @@ router.get('/imoveis/:imovelId/arquivos/:folderName', (req, res) => {
     });
 });
 
-// Rota para fazer UPLOAD de um arquivo
-// O multer é chamado como middleware aqui para processar o 'form-data'
-router.post('/imoveis/:imovelId/arquivos/:folderName', upload.single('file'), (req, res) => {
+// Rota para fazer UPLOAD de um ou mais arquivos
+// <-- MUDANÇA AQUI: Usa o middleware 'galleryUpload'
+// Nota: .array('files', 10) permite o upload de até 10 arquivos de uma vez com o campo 'files'.
+// Se seu frontend envia um arquivo por vez no campo 'file', use .single('file').
+router.post('/imoveis/:imovelId/arquivos/:folderName', galleryUpload.array('files', 10), (req, res) => {
     const { imovelId, folderName } = req.params;
     
-    if (!req.file) {
+    // Agora verificamos por 'req.files' (plural) que o .array() cria
+    if (!req.files || req.files.length === 0) {
         return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
     }
 
-    const { originalname, path: filePath, mimetype, size } = req.file;
-    // Converte o caminho para usar barras normais e remove a parte 'public' para o acesso via URL
-    const publicPath = filePath.replace(/\\/g, '/').replace('public', '');
-    const fileSizeKB = (size / 1024).toFixed(2);
+    // Mapeia cada arquivo enviado para uma linha a ser inserida no banco
+    const insertPromises = req.files.map(file => {
+        return new Promise((resolve, reject) => {
+            const { originalname, path: filePath, mimetype, size } = file;
+            const publicPath = filePath.replace(/\\/g, '/').replace('public', '');
+            const fileSizeKB = (size / 1024).toFixed(2);
 
-    const sql = `
-        INSERT INTO arquivos (imovel_id, folder_name, file_name, file_path, file_type, file_size_kb)
-        VALUES (?, ?, ?, ?, ?, ?)
-    `;
-    const values = [imovelId, folderName, originalname, publicPath, mimetype, fileSizeKB];
+            const sql = `
+                INSERT INTO arquivos (imovel_id, folder_name, file_name, file_path, file_type, file_size_kb)
+                VALUES (?, ?, ?, ?, ?, ?)
+            `;
+            const values = [imovelId, folderName, originalname, publicPath, mimetype, fileSizeKB];
 
-    db.query(sql, values, (err, result) => {
-        if (err) {
-            // Se der erro no DB, apaga o arquivo que já foi salvo pelo multer
-            fs.unlinkSync(filePath); 
-            return res.status(500).json({ error: 'Erro ao salvar informações do arquivo no banco.' });
-        }
-        res.status(201).json({ message: 'Arquivo enviado com sucesso!', fileId: result.insertId, filePath: publicPath });
+            db.query(sql, values, (err, result) => {
+                if (err) {
+                    fs.unlinkSync(filePath); // Apaga o arquivo se a inserção no DB falhar
+                    return reject(err);
+                }
+                resolve({ fileId: result.insertId, filePath: publicPath, originalName: originalname });
+            });
+        });
     });
+
+    // Executa todas as inserções
+    Promise.all(insertPromises)
+        .then(results => {
+            res.status(201).json({ message: 'Arquivos enviados com sucesso!', uploadedFiles: results });
+        })
+        .catch(err => {
+            res.status(500).json({ error: 'Erro ao salvar um ou mais arquivos no banco.', details: err.message });
+        });
 });
 
 // Rota para EXCLUIR um arquivo
