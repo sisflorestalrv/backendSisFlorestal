@@ -16,7 +16,7 @@ router.post("/veiculos", (req, res) => {
         tipoVeiculo, marca, modelo, anoFabricacao, anoModelo,
         placa, renavam, chassi, cor, quilometragem,
         tipoCombustivel, capacidadeTanque, dataAquisicao,
-        valorAquisicao, observacoes
+        valorAquisicao, codigo_cc, observacoes // <-- NOVO CAMPO ADICIONADO
     } = req.body;
 
     if (!tipoVeiculo || !marca || !modelo || !anoFabricacao || !anoModelo || !placa || !renavam || !chassi || !cor || !quilometragem || !tipoCombustivel || !capacidadeTanque || !dataAquisicao || !valorAquisicao) {
@@ -27,8 +27,8 @@ router.post("/veiculos", (req, res) => {
         INSERT INTO veiculos (
             tipoVeiculo, marca, modelo, anoFabricacao, anoModelo, placa, renavam, 
             chassi, cor, quilometragem, tipoCombustivel, capacidadeTanque, 
-            dataAquisicao, valorAquisicao, observacoes
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            dataAquisicao, valorAquisicao, codigo_cc, observacoes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const values = [
@@ -36,6 +36,7 @@ router.post("/veiculos", (req, res) => {
         placa, renavam, chassi, cor, quilometragem,
         tipoCombustivel, capacidadeTanque, dataAquisicao,
         parseCurrency(valorAquisicao),
+        codigo_cc || null, // <-- NOVO CAMPO ADICIONADO (usa null se não for enviado)
         observacoes
     ];
 
@@ -51,7 +52,7 @@ router.post("/veiculos", (req, res) => {
     });
 });
 
-// **NOVA ROTA: Rota para obter todos os veículos**
+// Rota para obter todos os veículos
 router.get("/veiculos", (req, res) => {
     const sql = "SELECT * FROM veiculos ORDER BY marca, modelo";
     db.query(sql, (err, results) => {
@@ -63,7 +64,7 @@ router.get("/veiculos", (req, res) => {
     });
 });
 
-// **NOVA ROTA: Rota para obter um veículo pelo ID**
+// Rota para obter um veículo pelo ID
 router.get("/veiculos/:id", (req, res) => {
     const { id } = req.params;
     const sql = "SELECT * FROM veiculos WHERE id = ?";
@@ -76,11 +77,11 @@ router.get("/veiculos/:id", (req, res) => {
         if (results.length === 0) {
             return res.status(404).json({ error: "Veículo não encontrado." });
         }
-        res.json(results[0]); // Retorna o primeiro (e único) resultado
+        res.json(results[0]);
     });
 });
 
-// **NOVA ROTA: Rota para excluir um veículo**
+// Rota para excluir um veículo
 router.delete("/veiculos/:id", (req, res) => {
     const { id } = req.params;
     const sql = "DELETE FROM veiculos WHERE id = ?";
@@ -97,17 +98,16 @@ router.delete("/veiculos/:id", (req, res) => {
     });
 });
 
-// **NOVA ROTA: Rota para atualizar um veículo (PUT)**
+// Rota para atualizar um veículo (PUT)
 router.put("/veiculos/:id", (req, res) => {
     const { id } = req.params;
     const {
         tipoVeiculo, marca, modelo, anoFabricacao, anoModelo,
         placa, renavam, chassi, cor, quilometragem,
         tipoCombustivel, capacidadeTanque, dataAquisicao,
-        valorAquisicao, observacoes
+        valorAquisicao, codigo_cc, observacoes // <-- NOVO CAMPO ADICIONADO
     } = req.body;
 
-    // Validação básica
     if (!tipoVeiculo || !marca || !modelo || !placa || !quilometragem) {
         return res.status(400).json({ error: "Campos essenciais como tipo, marca, modelo, placa e quilometragem são obrigatórios." });
     }
@@ -117,7 +117,7 @@ router.put("/veiculos/:id", (req, res) => {
             tipoVeiculo = ?, marca = ?, modelo = ?, anoFabricacao = ?, anoModelo = ?,
             placa = ?, renavam = ?, chassi = ?, cor = ?, quilometragem = ?,
             tipoCombustivel = ?, capacidadeTanque = ?, dataAquisicao = ?,
-            valorAquisicao = ?, observacoes = ?
+            valorAquisicao = ?, codigo_cc = ?, observacoes = ?
         WHERE id = ?
     `;
 
@@ -125,14 +125,14 @@ router.put("/veiculos/:id", (req, res) => {
         tipoVeiculo, marca, modelo, anoFabricacao, anoModelo,
         placa, renavam, chassi, cor, quilometragem,
         tipoCombustivel, capacidadeTanque, dataAquisicao,
-        parseCurrency(valorAquisicao), // Converte a moeda para número antes de salvar
+        parseCurrency(valorAquisicao),
+        codigo_cc || null, // <-- NOVO CAMPO ADICIONADO
         observacoes,
         id
     ];
 
     db.query(sql, values, (err, result) => {
         if (err) {
-            // Trata erros de duplicação de chave (placa, renavam, chassi)
             if (err.code === 'ER_DUP_ENTRY') {
                 return res.status(409).json({ error: `Dados duplicados. A placa, renavam ou chassi já pertencem a outro veículo.` });
             }
@@ -145,6 +145,5 @@ router.put("/veiculos/:id", (req, res) => {
         res.status(200).json({ message: "Veículo atualizado com sucesso!" });
     });
 });
-
 
 module.exports = router;
