@@ -1,41 +1,47 @@
 const express = require("express");
 const db = require("../config/db");
-// <-- MUDANÇA AQUI: Importa a configuração específica para perfil
+const bcrypt = require('bcrypt'); // 1. Importe o bcrypt
 const { profileUpload } = require('../config/multerConfig'); 
 const fs = require('fs');
 const path = require('path');
-
-// Middlewares de autenticação e autorização
-const authMiddleware = require('../auth/authMiddleware'); // Para usuários logados
-const adminOnly = require('../auth/adminOnly'); // Apenas para administradores
+const authMiddleware = require('../auth/authMiddleware');
+const adminOnly = require('../auth/adminOnly');
 
 const router = express.Router();
+const saltRounds = 10; // Fator de custo para o hash
 
 // --- ROTAS DE GERENCIAMENTO DE USUÁRIOS (Apenas Admins) ---
 
-// Rota para criar um novo usuário (Admin)
-// <-- MUDANÇA AQUI: Usa o 'profileUpload'
-router.post("/usuarios", adminOnly, profileUpload.single('foto_perfil'), (req, res) => {
+// Rota para criar um novo usuário (Admin) - AGORA COM HASH
+router.post("/usuarios", adminOnly, profileUpload.single('foto_perfil'), async (req, res) => {
     const { username, password, tipo_usuario } = req.body;
-    // <-- MUDANÇA AQUI: Adiciona a pasta /perfis/ no caminho da URL
     const foto_perfil_url = req.file ? `/uploads/perfis/${req.file.filename}` : null;
 
     if (!username || !password || !tipo_usuario) {
         return res.status(400).json({ error: "Nome de usuário, senha e tipo são obrigatórios." });
     }
 
-    const sql = "INSERT INTO usuarios (username, password, tipo_usuario, foto_perfil_url) VALUES (?, ?, ?, ?)";
-    db.query(sql, [username, password, tipo_usuario, foto_perfil_url], (err, result) => {
-        if (err) {
-            if (req.file) fs.unlinkSync(req.file.path);
-            if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: "Este nome de usuário já existe." });
-            return res.status(500).json({ error: err.message });
-        }
-        res.status(201).json({ message: "Usuário criado com sucesso!", userId: result.insertId });
-    });
+    try {
+        // 2. Crie o hash da senha ANTES de salvar
+        const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+        const sql = "INSERT INTO usuarios (username, password, tipo_usuario, foto_perfil_url) VALUES (?, ?, ?, ?)";
+        db.query(sql, [username, hashedPassword, tipo_usuario, foto_perfil_url], (err, result) => {
+            if (err) {
+                if (req.file) fs.unlinkSync(req.file.path);
+                if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: "Este nome de usuário já existe." });
+                return res.status(500).json({ error: err.message });
+            }
+            res.status(201).json({ message: "Usuário criado com sucesso!", userId: result.insertId });
+        });
+    } catch (hashError) {
+        console.error("Erro ao gerar hash da senha:", hashError);
+        return res.status(500).json({ error: "Erro interno ao processar a senha." });
+    }
 });
 
-// Rota para listar todos os usuários (Admin)
+
+// Rota para listar todos os usuários (Admin) - Sem alterações
 router.get("/usuarios", adminOnly, (req, res) => {
     const sql = "SELECT id, username, tipo_usuario, foto_perfil_url FROM usuarios";
     db.query(sql, (err, results) => {
@@ -44,8 +50,7 @@ router.get("/usuarios", adminOnly, (req, res) => {
     });
 });
 
-// Rota para editar um usuário (Admin)
-// <-- MUDANÇA AQUI: Usa o 'profileUpload'
+// Rota para editar um usuário (Admin) - Sem alterações na senha aqui
 router.put("/usuarios/:id", adminOnly, profileUpload.single('foto_perfil'), (req, res) => {
     const { id } = req.params;
     const { username, tipo_usuario } = req.body;
@@ -61,7 +66,6 @@ router.put("/usuarios/:id", adminOnly, profileUpload.single('foto_perfil'), (req
         const oldFotoUrl = results[0].foto_perfil_url;
         const fieldsToUpdate = { username, tipo_usuario };
         if (req.file) {
-            // <-- MUDANÇA AQUI: Adiciona a pasta /perfis/ no caminho da URL
             fieldsToUpdate.foto_perfil_url = `/uploads/perfis/${req.file.filename}`;
         }
 
@@ -80,7 +84,7 @@ router.put("/usuarios/:id", adminOnly, profileUpload.single('foto_perfil'), (req
     });
 });
 
-// Rota para excluir um usuário (Admin)
+// Rota para excluir um usuário (Admin) - Sem alterações
 router.delete("/usuarios/:id", adminOnly, (req, res) => {
     const { id } = req.params;
     db.query("SELECT foto_perfil_url FROM usuarios WHERE id = ?", [id], (err, results) => {
@@ -104,9 +108,9 @@ router.delete("/usuarios/:id", adminOnly, (req, res) => {
 
 // --- ROTAS DE PERFIL DO PRÓPRIO USUÁRIO (Qualquer Usuário Logado) ---
 
-// Rota para buscar dados do próprio perfil
+// Rota para buscar dados do próprio perfil - Sem alterações
 router.get('/perfil', authMiddleware, (req, res) => {
-    const userId = req.user.id; // Pega o ID do usuário a partir do token JWT
+    const userId = req.user.id;
     const sql = "SELECT id, username, foto_perfil_url FROM usuarios WHERE id = ?";
     db.query(sql, [userId], (err, results) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -115,8 +119,7 @@ router.get('/perfil', authMiddleware, (req, res) => {
     });
 });
 
-// Rota para atualizar os próprios dados (nome e foto)
-// <-- MUDANÇA AQUI: Usa o 'profileUpload'
+// Rota para atualizar os próprios dados (nome e foto) - Sem alterações na senha
 router.put('/perfil/dados', authMiddleware, profileUpload.single('foto_perfil'), (req, res) => {
     const userId = req.user.id;
     const { username } = req.body;
@@ -126,7 +129,6 @@ router.put('/perfil/dados', authMiddleware, profileUpload.single('foto_perfil'),
     db.query("SELECT foto_perfil_url FROM usuarios WHERE id = ?", [userId], (err, results) => {
         if (err) return res.status(500).json({ error: err.message });
         if (results.length === 0) {
-             // Caso raro, mas bom ter. Se o token for válido mas o usuário não existir mais.
             return res.status(404).json({ error: "Usuário não encontrado." });
         }
         
@@ -135,7 +137,6 @@ router.put('/perfil/dados', authMiddleware, profileUpload.single('foto_perfil'),
         let newImageUrl = null;
 
         if (req.file) {
-            // <-- MUDANÇA AQUI: Adiciona a pasta /perfis/ no caminho da URL
             newImageUrl = `/uploads/perfis/${req.file.filename}`;
             fieldsToUpdate.foto_perfil_url = newImageUrl;
         }
@@ -152,13 +153,13 @@ router.put('/perfil/dados', authMiddleware, profileUpload.single('foto_perfil'),
             }
             res.status(200).json({ 
                 message: "Perfil atualizado com sucesso!",
-                newImageUrl: newImageUrl // Retorna a nova URL para o frontend atualizar o estado
+                newImageUrl: newImageUrl
             });
         });
     });
 });
 
-// Rota para atualizar a própria senha
+// Rota para atualizar a própria senha - AGORA COM HASH
 router.put('/perfil/senha', authMiddleware, (req, res) => {
     const userId = req.user.id;
     const { currentPassword, newPassword } = req.body;
@@ -168,23 +169,29 @@ router.put('/perfil/senha', authMiddleware, (req, res) => {
     }
 
     const sqlSelect = "SELECT password FROM usuarios WHERE id = ?";
-    db.query(sqlSelect, [userId], (err, results) => {
+    db.query(sqlSelect, [userId], async (err, results) => {
         if (err) return res.status(500).json({ error: err.message });
         
         const user = results[0];
-        // IMPORTANTE: Substitua pela sua lógica de comparação de hash (ex: bcrypt.compare)
-        if (user.password !== currentPassword) {
-            return res.status(403).json({ error: "A senha atual está incorreta." });
+        try {
+            // 3. Compare a senha atual (texto plano) com o hash do banco de dados
+            const isMatch = await bcrypt.compare(currentPassword, user.password);
+            if (!isMatch) {
+                return res.status(403).json({ error: "A senha atual está incorreta." });
+            }
+
+            // 4. Crie o hash da NOVA senha
+            const newHashedPassword = await bcrypt.hash(newPassword, saltRounds);
+
+            const sqlUpdate = "UPDATE usuarios SET password = ? WHERE id = ?";
+            db.query(sqlUpdate, [newHashedPassword, userId], (err, result) => {
+                if (err) return res.status(500).json({ error: err.message });
+                res.status(200).json({ message: "Senha alterada com sucesso!" });
+            });
+        } catch (compareError) {
+            console.error("Erro ao comparar senhas:", compareError);
+            return res.status(500).json({ error: "Erro interno ao verificar a senha." });
         }
-
-        // IMPORTANTE: Substitua pela sua lógica de criação de hash (ex: bcrypt.hash)
-        const newHashedPassword = newPassword;
-
-        const sqlUpdate = "UPDATE usuarios SET password = ? WHERE id = ?";
-        db.query(sqlUpdate, [newHashedPassword, userId], (err, result) => {
-            if (err) return res.status(500).json({ error: err.message });
-            res.status(200).json({ message: "Senha alterada com sucesso!" });
-        });
     });
 });
 

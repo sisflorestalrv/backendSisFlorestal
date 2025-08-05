@@ -1,5 +1,6 @@
 const db = require("../config/db");
-const jwt = require('jsonwebtoken'); // Importe a biblioteca JWT
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt'); // 1. Importe o bcrypt
 
 const loginController = {
   login: (req, res) => {
@@ -9,44 +10,53 @@ const loginController = {
       return res.status(400).json({ error: "Usuário e senha são obrigatórios" });
     }
 
-    // Seleciona todos os dados necessários do usuário
     const sql = "SELECT id, username, password, tipo_usuario, foto_perfil_url FROM usuarios WHERE username = ?";
-    db.query(sql, [username], (err, results) => {
+    db.query(sql, [username], async (err, results) => {
       if (err) {
         return res.status(500).json({ error: err.message });
       }
       if (results.length === 0) {
+        // Mensagem genérica para não informar qual campo está errado
         return res.status(401).json({ error: "Usuário ou senha incorretos" });
       }
 
       const user = results[0];
 
-      // IMPORTANTE: Você deve usar uma biblioteca como 'bcrypt' para comparar senhas com hash.
-      // A comparação direta de senhas em texto plano não é segura.
-      if (password === user.password) {
-        
-        const payload = {
-          id: user.id,
-          username: user.username,
-          tipo_usuario: user.tipo_usuario 
-        };
+      try {
+        // 2. Use bcrypt.compare para verificar a senha
+        // Ele compara a senha que o usuário digitou (password) com o hash do banco (user.password)
+        const isMatch = await bcrypt.compare(password, user.password);
 
-        // É altamente recomendado usar uma variável de ambiente para a chave secreta (process.env.JWT_SECRET)
-        const token = jwt.sign(payload, process.env.JWT_SECRET || 'sua_chave_secreta_super_segura', { expiresIn: '8h' });
+        if (isMatch) {
+          // Se as senhas correspondem, crie o token como antes
+          const payload = {
+            id: user.id,
+            username: user.username,
+            tipo_usuario: user.tipo_usuario 
+          };
 
-        // --- CORREÇÃO PRINCIPAL AQUI ---
-        // Retorna o token e um objeto 'user' com os dados que o frontend precisa.
-        return res.status(200).json({
-          message: "Login bem-sucedido",
-          token: token,
-          user: {
-              tipo_usuario: user.tipo_usuario,
-              foto_perfil_url: user.foto_perfil_url // Enviando a URL da foto
-          }
-        });
-        
-      } else {
-        return res.status(401).json({ error: "Usuário ou senha incorretos" });
+          const token = jwt.sign(
+            payload, 
+            process.env.JWT_SECRET, // Lê a chave segura do .env
+            { expiresIn: '8h' }
+          );
+
+          return res.status(200).json({
+            message: "Login bem-sucedido",
+            token: token,
+            user: {
+                tipo_usuario: user.tipo_usuario,
+                foto_perfil_url: user.foto_perfil_url
+            }
+          });
+          
+        } else {
+          // Se a senha não corresponde, retorne o mesmo erro genérico
+          return res.status(401).json({ error: "Usuário ou senha incorretos" });
+        }
+      } catch (compareError) {
+          console.error("Erro ao comparar senhas:", compareError);
+          return res.status(500).json({ error: "Erro interno no servidor." });
       }
     });
   },
