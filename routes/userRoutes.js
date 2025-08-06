@@ -12,31 +12,53 @@ const saltRounds = 10; // Fator de custo para o hash
 
 // --- ROTAS DE GERENCIAMENTO DE USUÁRIOS (Apenas Admins) ---
 
-// Rota para criar um novo usuário (Admin) - AGORA COM HASH
+// Rota para criar um novo usuário (Admin) - VERSÃO ATUALIZADA
 router.post("/usuarios", adminOnly, profileUpload.single('foto_perfil'), async (req, res) => {
-    const { username, password, tipo_usuario } = req.body;
+    const { username, password, tipo_usuario, nome_completo, cpf, numero_habilitacao } = req.body;
     const foto_perfil_url = req.file ? `/uploads/perfis/${req.file.filename}` : null;
 
     if (!username || !password || !tipo_usuario) {
         return res.status(400).json({ error: "Nome de usuário, senha e tipo são obrigatórios." });
     }
 
+    // Validação extra se o tipo for motorista
+    if (tipo_usuario === 'motorista' && (!nome_completo || !cpf || !numero_habilitacao)) {
+        return res.status(400).json({ error: "Para motoristas, nome completo, CPF e habilitação são obrigatórios." });
+    }
+
+    const connection = await db.promise().getConnection();
+
     try {
-        // 2. Crie o hash da senha ANTES de salvar
+        await connection.beginTransaction();
+
         const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-        const sql = "INSERT INTO usuarios (username, password, tipo_usuario, foto_perfil_url) VALUES (?, ?, ?, ?)";
-        db.query(sql, [username, hashedPassword, tipo_usuario, foto_perfil_url], (err, result) => {
-            if (err) {
-                if (req.file) fs.unlinkSync(req.file.path);
-                if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: "Este nome de usuário já existe." });
-                return res.status(500).json({ error: err.message });
-            }
-            res.status(201).json({ message: "Usuário criado com sucesso!", userId: result.insertId });
-        });
-    } catch (hashError) {
-        console.error("Erro ao gerar hash da senha:", hashError);
-        return res.status(500).json({ error: "Erro interno ao processar a senha." });
+        // 1. Insere na tabela de usuários
+        const userSql = "INSERT INTO usuarios (username, password, tipo_usuario, foto_perfil_url) VALUES (?, ?, ?, ?)";
+        const [userResult] = await connection.query(userSql, [username, hashedPassword, tipo_usuario, foto_perfil_url]);
+        const newUserId = userResult.insertId;
+
+        // 2. Se for motorista, insere na tabela de motoristas
+        if (tipo_usuario === 'motorista') {
+            const driverSql = "INSERT INTO motoristas (usuario_id, nome_completo, cpf, numero_habilitacao) VALUES (?, ?, ?, ?)";
+            await connection.query(driverSql, [newUserId, nome_completo, cpf, numero_habilitacao]);
+        }
+
+        await connection.commit();
+        res.status(201).json({ message: "Usuário criado com sucesso!", userId: newUserId });
+
+    } catch (error) {
+        await connection.rollback();
+        if (req.file) fs.unlinkSync(req.file.path); // Remove a foto se a transação falhar
+
+        if (error.code === 'ER_DUP_ENTRY') {
+            return res.status(409).json({ error: "Este nome de usuário, CPF ou habilitação já existe." });
+        }
+        console.error("Erro ao criar usuário:", error);
+        return res.status(500).json({ error: "Erro interno ao criar o usuário." });
+
+    } finally {
+        if (connection) connection.release();
     }
 });
 
