@@ -12,8 +12,6 @@ const parseCurrency = (value) => {
 
 // --- Rota para buscar todos os motoristas (ID e Nome Completo) ---
 router.get("/motoristas", (req, res) => {
-    // Este SQL junta as tabelas 'usuarios' e 'motoristas' para pegar o nome do motorista
-    // e o seu ID único da tabela motoristas.
     const sql = `
         SELECT 
             m.id, 
@@ -38,10 +36,10 @@ router.get("/motoristas", (req, res) => {
 router.post("/veiculos", (req, res) => {
     const {
         tipoVeiculo, marca, modelo, anoFabricacao, anoModelo,
-        placa, renavam, chassi, cor, quilometragem,
-        tipoCombustivel, capacidadeTanque, dataAquisicao,
+        placa, renavam, chassi, cor, potenciaMotor,
+        quilometragem, tipoCombustivel, capacidadeTanque, dataAquisicao,
         valorAquisicao, codigo_cc, observacoes,
-        motorista_id // Campo do motorista
+        motorista_id
     } = req.body;
 
     if (!tipoVeiculo || !marca || !modelo || !anoFabricacao || !anoModelo || !placa || !renavam || !chassi || !cor || !quilometragem || !tipoCombustivel || !capacidadeTanque || !dataAquisicao || !valorAquisicao) {
@@ -51,19 +49,21 @@ router.post("/veiculos", (req, res) => {
     const sql = `
         INSERT INTO veiculos (
             tipoVeiculo, marca, modelo, anoFabricacao, anoModelo, placa, renavam, 
-            chassi, cor, quilometragem, tipoCombustivel, capacidadeTanque, 
+            chassi, cor, potenciaMotor, quilometragem, tipoCombustivel, capacidadeTanque, 
             dataAquisicao, valorAquisicao, codigo_cc, observacoes, motorista_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const values = [
         tipoVeiculo, marca, modelo, anoFabricacao, anoModelo,
-        placa, renavam, chassi, cor, quilometragem,
+        placa, renavam, chassi, cor, 
+        potenciaMotor || null,
+        quilometragem,
         tipoCombustivel, capacidadeTanque, dataAquisicao,
         parseCurrency(valorAquisicao),
         codigo_cc || null,
         observacoes,
-        motorista_id || null // Salva o ID do motorista (ou null se não for enviado)
+        motorista_id || null
     ];
 
     db.query(sql, values, (err, result) => {
@@ -80,7 +80,6 @@ router.post("/veiculos", (req, res) => {
 
 // --- Rota para obter todos os veículos (com nome do motorista) ---
 router.get("/veiculos", (req, res) => {
-    // Usamos LEFT JOIN para que veículos sem motorista também apareçam
     const sql = `
         SELECT 
             v.*, 
@@ -98,14 +97,15 @@ router.get("/veiculos", (req, res) => {
     });
 });
 
-// --- Rota para obter um veículo pelo ID (com nome do motorista) ---
+// --- Rota para obter um veículo pelo ID (com nome e CNH do motorista) ---
 router.get("/veiculos/:id", (req, res) => {
     const { id } = req.params;
-    // Usamos LEFT JOIN para buscar o nome do motorista junto com os dados do veículo
+    // ATUALIZAÇÃO: Adicionado 'm.numero_habilitacao' ao SELECT
     const sql = `
         SELECT 
             v.*, 
-            m.nome_completo AS motorista_nome 
+            m.nome_completo AS motorista_nome,
+            m.numero_habilitacao AS motorista_cnh 
         FROM veiculos v
         LEFT JOIN motoristas m ON v.motorista_id = m.id
         WHERE v.id = ?
@@ -119,7 +119,8 @@ router.get("/veiculos/:id", (req, res) => {
         if (results.length === 0) {
             return res.status(404).json({ error: "Veículo não encontrado." });
         }
-        res.json(results[0]); // Envia o objeto do veículo com o campo 'motorista_nome'
+        // Envia o objeto do veículo com os campos 'motorista_nome' e 'motorista_cnh'
+        res.json(results[0]);
     });
 });
 
@@ -145,10 +146,10 @@ router.put("/veiculos/:id", (req, res) => {
     const { id } = req.params;
     const {
         tipoVeiculo, marca, modelo, anoFabricacao, anoModelo,
-        placa, renavam, chassi, cor, quilometragem,
-        tipoCombustivel, capacidadeTanque, dataAquisicao,
+        placa, renavam, chassi, cor, potenciaMotor,
+        quilometragem, tipoCombustivel, capacidadeTanque, dataAquisicao,
         valorAquisicao, codigo_cc, observacoes,
-        motorista_id // Campo do motorista
+        motorista_id
     } = req.body;
 
     if (!tipoVeiculo || !marca || !modelo || !placa || !quilometragem) {
@@ -158,20 +159,22 @@ router.put("/veiculos/:id", (req, res) => {
     const sql = `
         UPDATE veiculos SET
             tipoVeiculo = ?, marca = ?, modelo = ?, anoFabricacao = ?, anoModelo = ?,
-            placa = ?, renavam = ?, chassi = ?, cor = ?, quilometragem = ?,
-            tipoCombustivel = ?, capacidadeTanque = ?, dataAquisicao = ?,
+            placa = ?, renavam = ?, chassi = ?, cor = ?, potenciaMotor = ?, 
+            quilometragem = ?, tipoCombustivel = ?, capacidadeTanque = ?, dataAquisicao = ?,
             valorAquisicao = ?, codigo_cc = ?, observacoes = ?, motorista_id = ?
         WHERE id = ?
     `;
 
     const values = [
         tipoVeiculo, marca, modelo, anoFabricacao, anoModelo,
-        placa, renavam, chassi, cor, quilometragem,
+        placa, renavam, chassi, cor, 
+        potenciaMotor || null,
+        quilometragem,
         tipoCombustivel, capacidadeTanque, dataAquisicao,
         parseCurrency(valorAquisicao),
         codigo_cc || null,
         observacoes,
-        motorista_id || null, // Atualiza o ID do motorista
+        motorista_id || null,
         id
     ];
 
