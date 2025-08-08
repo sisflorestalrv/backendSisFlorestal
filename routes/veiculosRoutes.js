@@ -38,8 +38,9 @@ router.post("/veiculos", (req, res) => {
         tipoVeiculo, marca, modelo, anoFabricacao, anoModelo,
         placa, renavam, chassi, cor, potenciaMotor,
         quilometragem, tipoCombustivel, capacidadeTanque, dataAquisicao,
-        valorAquisicao, codigo_cc, observacoes,
-        motorista_id
+        valorAquisicao, codigo_cc, observacoes, motorista_id,
+        // --- NOVOS CAMPOS ---
+        vencimentoAET, vencimentoCronotacografo, vencimentoDocumentos
     } = req.body;
 
     if (!tipoVeiculo || !marca || !modelo || !anoFabricacao || !anoModelo || !placa || !renavam || !chassi || !cor || !quilometragem || !tipoCombustivel || !capacidadeTanque || !dataAquisicao || !valorAquisicao) {
@@ -50,8 +51,9 @@ router.post("/veiculos", (req, res) => {
         INSERT INTO veiculos (
             tipoVeiculo, marca, modelo, anoFabricacao, anoModelo, placa, renavam, 
             chassi, cor, potenciaMotor, quilometragem, tipoCombustivel, capacidadeTanque, 
-            dataAquisicao, valorAquisicao, codigo_cc, observacoes, motorista_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            dataAquisicao, valorAquisicao, codigo_cc, observacoes, motorista_id,
+            vencimentoAET, vencimentoCronotacografo, vencimentoDocumentos
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const values = [
@@ -63,7 +65,11 @@ router.post("/veiculos", (req, res) => {
         parseCurrency(valorAquisicao),
         codigo_cc || null,
         observacoes,
-        motorista_id || null
+        motorista_id || null,
+        // --- NOVOS VALORES ---
+        vencimentoAET || null,
+        vencimentoCronotacografo || null,
+        vencimentoDocumentos || null
     ];
 
     db.query(sql, values, (err, result) => {
@@ -100,7 +106,6 @@ router.get("/veiculos", (req, res) => {
 // --- Rota para obter um veículo pelo ID (com nome e CNH do motorista) ---
 router.get("/veiculos/:id", (req, res) => {
     const { id } = req.params;
-    // ATUALIZAÇÃO: Adicionado 'm.numero_habilitacao' ao SELECT
     const sql = `
         SELECT 
             v.*, 
@@ -119,7 +124,6 @@ router.get("/veiculos/:id", (req, res) => {
         if (results.length === 0) {
             return res.status(404).json({ error: "Veículo não encontrado." });
         }
-        // Envia o objeto do veículo com os campos 'motorista_nome' e 'motorista_cnh'
         res.json(results[0]);
     });
 });
@@ -148,8 +152,9 @@ router.put("/veiculos/:id", (req, res) => {
         tipoVeiculo, marca, modelo, anoFabricacao, anoModelo,
         placa, renavam, chassi, cor, potenciaMotor,
         quilometragem, tipoCombustivel, capacidadeTanque, dataAquisicao,
-        valorAquisicao, codigo_cc, observacoes,
-        motorista_id
+        valorAquisicao, codigo_cc, observacoes, motorista_id,
+        // --- NOVOS CAMPOS ---
+        vencimentoAET, vencimentoCronotacografo, vencimentoDocumentos
     } = req.body;
 
     if (!tipoVeiculo || !marca || !modelo || !placa || !quilometragem) {
@@ -161,7 +166,8 @@ router.put("/veiculos/:id", (req, res) => {
             tipoVeiculo = ?, marca = ?, modelo = ?, anoFabricacao = ?, anoModelo = ?,
             placa = ?, renavam = ?, chassi = ?, cor = ?, potenciaMotor = ?, 
             quilometragem = ?, tipoCombustivel = ?, capacidadeTanque = ?, dataAquisicao = ?,
-            valorAquisicao = ?, codigo_cc = ?, observacoes = ?, motorista_id = ?
+            valorAquisicao = ?, codigo_cc = ?, observacoes = ?, motorista_id = ?,
+            vencimentoAET = ?, vencimentoCronotacografo = ?, vencimentoDocumentos = ?
         WHERE id = ?
     `;
 
@@ -175,6 +181,10 @@ router.put("/veiculos/:id", (req, res) => {
         codigo_cc || null,
         observacoes,
         motorista_id || null,
+        // --- NOVOS VALORES ---
+        vencimentoAET || null,
+        vencimentoCronotacografo || null,
+        vencimentoDocumentos || null,
         id
     ];
 
