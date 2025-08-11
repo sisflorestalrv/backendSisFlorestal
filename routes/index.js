@@ -15,6 +15,7 @@ const notasRoutes = require("./notasRoutes");
 const userRoutes = require("./userRoutes");
 const veiculosRoutes = require("./veiculosRoutes");
 const arquivosRoutes = require("./arquivosRoutes"); // <-- ADICIONE ESTA LINHA
+const checklistRoutes = require("./checklistRoutes");
 
 /*
  * =================================================================
@@ -36,7 +37,9 @@ router.use(desbastesRoutes);
 router.use(inventarioRoutes);
 router.use(notasRoutes);
 router.use(veiculosRoutes);
-router.use(arquivosRoutes); // <-- ADICIONE ESTA LINHA
+router.use(arquivosRoutes);
+router.use(checklistRoutes);
+
 
 // 4. ROTAS DE ADMINISTRAÇÃO
 router.use(userRoutes);
