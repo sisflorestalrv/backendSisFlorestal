@@ -39,7 +39,6 @@ router.post("/veiculos", (req, res) => {
         placa, renavam, chassi, cor, potenciaMotor,
         quilometragem, tipoCombustivel, capacidadeTanque, dataAquisicao,
         valorAquisicao, codigo_cc, observacoes, motorista_id,
-        // --- NOVOS CAMPOS ---
         vencimentoAET, vencimentoCronotacografo, vencimentoDocumentos
     } = req.body;
 
@@ -47,6 +46,7 @@ router.post("/veiculos", (req, res) => {
         return res.status(400).json({ error: "Todos os campos obrigatórios devem ser preenchidos." });
     }
 
+    // Nota: O status de manutenção será 'disponivel' por padrão no banco de dados.
     const sql = `
         INSERT INTO veiculos (
             tipoVeiculo, marca, modelo, anoFabricacao, anoModelo, placa, renavam, 
@@ -66,7 +66,6 @@ router.post("/veiculos", (req, res) => {
         codigo_cc || null,
         observacoes,
         motorista_id || null,
-        // --- NOVOS VALORES ---
         vencimentoAET || null,
         vencimentoCronotacografo || null,
         vencimentoDocumentos || null
@@ -153,7 +152,6 @@ router.put("/veiculos/:id", (req, res) => {
         placa, renavam, chassi, cor, potenciaMotor,
         quilometragem, tipoCombustivel, capacidadeTanque, dataAquisicao,
         valorAquisicao, codigo_cc, observacoes, motorista_id,
-        // --- NOVOS CAMPOS ---
         vencimentoAET, vencimentoCronotacografo, vencimentoDocumentos
     } = req.body;
 
@@ -181,7 +179,6 @@ router.put("/veiculos/:id", (req, res) => {
         codigo_cc || null,
         observacoes,
         motorista_id || null,
-        // --- NOVOS VALORES ---
         vencimentoAET || null,
         vencimentoCronotacografo || null,
         vencimentoDocumentos || null,
@@ -202,5 +199,41 @@ router.put("/veiculos/:id", (req, res) => {
         res.status(200).json({ message: "Veículo atualizado com sucesso!" });
     });
 });
+
+
+// =======================================================================
+// ========================= NOVAS ROTAS ABAIXO ==========================
+// =======================================================================
+
+// --- NOVA ROTA para atualizar o status e a descrição da manutenção ---
+router.put("/veiculos/:id/manutencao", (req, res) => {
+    const { id } = req.params;
+    const { status, description } = req.body;
+
+    if (!status) {
+        return res.status(400).json({ error: "O campo 'status' é obrigatório." });
+    }
+
+    // Se a descrição for indefinida, salve como NULL ou uma string vazia
+    const finalDescription = description !== undefined ? description : null;
+
+    const sql = `
+        UPDATE veiculos 
+        SET status_manutencao = ?, descricao_manutencao = ?
+        WHERE id = ?
+    `;
+
+    db.query(sql, [status, finalDescription, id], (err, result) => {
+        if (err) {
+            console.error("Erro ao atualizar status da manutenção:", err);
+            return res.status(500).json({ error: "Erro interno ao atualizar a manutenção." });
+        }
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: "Veículo não encontrado." });
+        }
+        res.status(200).json({ message: "Status da manutenção atualizado com sucesso!" });
+    });
+});
+
 
 module.exports = router;
