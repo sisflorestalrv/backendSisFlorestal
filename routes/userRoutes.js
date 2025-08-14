@@ -217,4 +217,56 @@ router.put('/perfil/senha', authMiddleware, (req, res) => {
     });
 });
 
+// Rota para listar as sessões ativas do usuário logado
+router.get('/perfil/sessoes', authMiddleware, (req, res) => {
+    const userId = req.user.id;
+    const currentSessionId = req.user.jti; // ID da sessão atual vindo do token
+
+    const sql = "SELECT id, user_agent, ip_address, last_active_at FROM sessoes WHERE usuario_id = ? ORDER BY last_active_at DESC";
+
+    db.query(sql, [userId], (err, results) => {
+        if (err) {
+            return res.status(500).json({ error: "Erro ao buscar sessões." });
+        }
+
+        const sessions = results.map(session => {
+            const ua = uaParser(session.user_agent);
+            const deviceName = `${ua.os.name || 'Desconhecido'} - ${ua.browser.name || 'Desconhecido'}`;
+            
+            return {
+                id: session.id,
+                deviceName: deviceName,
+                location: session.ip_address, // Simplificado, pode ser melhorado com geolocalização
+                lastActive: session.last_active_at,
+                isCurrent: session.id.toString() === currentSessionId
+            };
+        });
+
+        res.status(200).json(sessions);
+    });
+});
+
+// Rota para deletar (desconectar) uma sessão específica
+router.delete('/perfil/sessoes/:id', authMiddleware, (req, res) => {
+    const userId = req.user.id;
+    const sessionIdToDelete = req.params.id;
+    
+    // Não permite que o usuário delete a sessão atual por este método
+    if (sessionIdToDelete === req.user.jti) {
+        return res.status(400).json({ error: "Não é possível desconectar a sessão atual por aqui." });
+    }
+
+    // Deleta a sessão somente se ela pertencer ao usuário logado
+    const sql = "DELETE FROM sessoes WHERE id = ? AND usuario_id = ?";
+    db.query(sql, [sessionIdToDelete, userId], (err, result) => {
+        if (err) {
+            return res.status(500).json({ error: "Erro ao desconectar sessão." });
+        }
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: "Sessão não encontrada ou não pertence a você." });
+        }
+        res.status(200).json({ message: "Sessão desconectada com sucesso." });
+    });
+});
+
 module.exports = router;

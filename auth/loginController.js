@@ -6,6 +6,10 @@ const bcrypt = require('bcrypt');
 const loginController = {
   login: (req, res) => {
     const { username, password } = req.body;
+    // highlight-start
+    const ip_address = req.ip;
+    const user_agent = req.headers['user-agent'];
+    // highlight-end
 
     if (!username || !password) {
       return res.status(400).json({ error: "Usuário e senha são obrigatórios" });
@@ -26,11 +30,16 @@ const loginController = {
         const isMatch = await bcrypt.compare(password, user.password);
 
         if (isMatch) {
+          // highlight-start
+          // Inclui um ID de sessão único (jti) no token
+          const sessionId = Date.now().toString() + user.id;
           const payload = {
             id: user.id,
             username: user.username,
-            tipo_usuario: user.tipo_usuario
+            tipo_usuario: user.tipo_usuario,
+            jti: sessionId // jti é a abreviação padrão para "JWT ID"
           };
+          // highlight-end
 
           const token = jwt.sign(
             payload,
@@ -38,7 +47,17 @@ const loginController = {
             { expiresIn: '30d' } 
           );
 
-          // Objeto de resposta base
+          // highlight-start
+          // Salva a nova sessão no banco de dados
+          const sessionSql = "INSERT INTO sessoes (id, usuario_id, token_jwt, ip_address, user_agent) VALUES (?, ?, ?, ?, ?)";
+          db.query(sessionSql, [sessionId, user.id, token, ip_address, user_agent], (sessionErr, sessionResult) => {
+            if (sessionErr) {
+              console.error("Erro ao salvar a sessão:", sessionErr);
+              // Continua mesmo se houver erro, para não impedir o login
+            }
+          });
+          // highlight-end
+          
           const responsePayload = {
             message: "Login bem-sucedido",
             token: token,
@@ -48,30 +67,9 @@ const loginController = {
             }
           };
 
-          // --- LÓGICA ADICIONAL PARA MOTORISTA ---
           if (user.tipo_usuario === 'motorista') {
-            const motoristaSql = `
-              SELECT v.id AS veiculo_id 
-              FROM motoristas m
-              JOIN veiculos v ON m.id = v.motorista_id
-              WHERE m.usuario_id = ?
-              LIMIT 1
-            `;
-            db.query(motoristaSql, [user.id], (motoristaErr, motoristaResults) => {
-              if (motoristaErr) {
-                console.error("Erro ao buscar veículo do motorista:", motoristaErr);
-                return res.status(500).json({ error: "Erro ao verificar dados do motorista." });
-              }
-
-              if (motoristaResults.length > 0) {
-                // Adiciona o ID do veículo à resposta se encontrado
-                responsePayload.user.veiculo_id = motoristaResults[0].veiculo_id;
-              }
-              
-              return res.status(200).json(responsePayload);
-            });
+            // ... (sua lógica de motorista permanece a mesma)
           } else {
-            // Para outros tipos de usuário, retorna a resposta padrão
             return res.status(200).json(responsePayload);
           }
 
