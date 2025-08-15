@@ -2,6 +2,58 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../config/db");
+// --- LINHA ADICIONADA ---
+// Certifique-se de que o caminho para o seu arquivo authMiddleware está correto
+const authMiddleware = require("../auth/authMiddleware");
+
+// =======================================================================
+// ========================= ROTA DE STATS ===============================
+// =======================================================================
+
+// DENTRO DO SEU ARQUIVO veiculosRoutes.js
+
+router.get("/frota/stats", authMiddleware, async (req, res) => {
+    try {
+        const connection = await db.promise().getConnection();
+        
+        // Consultas ajustadas para os status corretos
+        const totalVeiculosQuery = "SELECT COUNT(id) as total FROM veiculos";
+        const emManutencaoQuery = "SELECT COUNT(id) as emManutencao FROM veiculos WHERE status_manutencao = 'in-progress'";
+        const disponiveisQuery = "SELECT COUNT(id) as disponiveis FROM veiculos WHERE status_manutencao = 'disponivel'";
+        const agendadasQuery = "SELECT COUNT(id) as agendadas FROM veiculos WHERE status_manutencao = 'to-do'";
+
+        const [
+            totalRows,
+            manutencaoRows,
+            disponiveisRows,
+            agendadasRows // Alterado de avisosRows
+        ] = await Promise.all([
+            connection.query(totalVeiculosQuery),
+            connection.query(emManutencaoQuery),
+            connection.query(disponiveisQuery),
+            connection.query(agendadasQuery) // Alterado de avisosVencimentoQuery
+        ]);
+        
+        connection.release();
+
+        const totalResult = totalRows[0][0];
+        const manutencaoResult = manutencaoRows[0][0];
+        const disponiveisResult = disponiveisRows[0][0];
+        const agendadasResult = agendadasRows[0][0]; // Alterado de avisosResult
+
+        res.json({
+            totalVeiculos: totalResult.total,
+            emManutencao: manutencaoResult.emManutencao,
+            disponiveis: disponiveisResult.disponiveis,
+            agendadas: agendadasResult.agendadas // Alterado de avisosVencimento
+        });
+
+    } catch (err) {
+        console.error("Erro ao buscar estatísticas da frota:", err);
+        res.status(500).json({ error: "Erro interno ao buscar estatísticas." });
+    }
+});
+
 
 // Função para remover a formatação da moeda (ex: "R$ 1.234,56" -> 1234.56)
 const parseCurrency = (value) => {
@@ -11,7 +63,7 @@ const parseCurrency = (value) => {
 };
 
 // --- Rota para buscar todos os motoristas (ID e Nome Completo) ---
-router.get("/motoristas", (req, res) => {
+router.get("/motoristas", authMiddleware, (req, res) => { // Adicionado authMiddleware aqui também por segurança
     const sql = `
         SELECT 
             m.id, 
@@ -33,7 +85,7 @@ router.get("/motoristas", (req, res) => {
 
 
 // --- Rota para cadastrar um novo veículo ---
-router.post("/veiculos", (req, res) => {
+router.post("/veiculos", authMiddleware, (req, res) => { // Adicionado authMiddleware aqui também por segurança
     const {
         tipoVeiculo, marca, modelo, anoFabricacao, anoModelo,
         placa, renavam, chassi, cor, potenciaMotor,
@@ -46,7 +98,6 @@ router.post("/veiculos", (req, res) => {
         return res.status(400).json({ error: "Todos os campos obrigatórios devem ser preenchidos." });
     }
 
-    // Nota: O status de manutenção será 'disponivel' por padrão no banco de dados.
     const sql = `
         INSERT INTO veiculos (
             tipoVeiculo, marca, modelo, anoFabricacao, anoModelo, placa, renavam, 
@@ -84,7 +135,7 @@ router.post("/veiculos", (req, res) => {
 });
 
 // --- Rota para obter todos os veículos (com nome do motorista) ---
-router.get("/veiculos", (req, res) => {
+router.get("/veiculos", authMiddleware, (req, res) => { // Adicionado authMiddleware aqui também por segurança
     const sql = `
         SELECT 
             v.*, 
@@ -103,7 +154,7 @@ router.get("/veiculos", (req, res) => {
 });
 
 // --- Rota para obter um veículo pelo ID (com nome e CNH do motorista) ---
-router.get("/veiculos/:id", (req, res) => {
+router.get("/veiculos/:id", authMiddleware, (req, res) => { // Adicionado authMiddleware aqui também por segurança
     const { id } = req.params;
     const sql = `
         SELECT 
@@ -128,7 +179,7 @@ router.get("/veiculos/:id", (req, res) => {
 });
 
 // --- Rota para excluir um veículo ---
-router.delete("/veiculos/:id", (req, res) => {
+router.delete("/veiculos/:id", authMiddleware, (req, res) => { // Adicionado authMiddleware aqui também por segurança
     const { id } = req.params;
     const sql = "DELETE FROM veiculos WHERE id = ?";
 
@@ -145,7 +196,7 @@ router.delete("/veiculos/:id", (req, res) => {
 });
 
 // --- Rota para atualizar um veículo (PUT) ---
-router.put("/veiculos/:id", (req, res) => {
+router.put("/veiculos/:id", authMiddleware, (req, res) => { // Adicionado authMiddleware aqui também por segurança
     const { id } = req.params;
     const {
         tipoVeiculo, marca, modelo, anoFabricacao, anoModelo,
@@ -200,13 +251,8 @@ router.put("/veiculos/:id", (req, res) => {
     });
 });
 
-
-// =======================================================================
-// ========================= NOVAS ROTAS ABAIXO ==========================
-// =======================================================================
-
-// --- NOVA ROTA para atualizar o status e a descrição da manutenção ---
-router.put("/veiculos/:id/manutencao", (req, res) => {
+// --- Rota para atualizar o status e a descrição da manutenção ---
+router.put("/veiculos/:id/manutencao", authMiddleware, (req, res) => { // Adicionado authMiddleware aqui também por segurança
     const { id } = req.params;
     const { status, description } = req.body;
 
@@ -214,7 +260,6 @@ router.put("/veiculos/:id/manutencao", (req, res) => {
         return res.status(400).json({ error: "O campo 'status' é obrigatório." });
     }
 
-    // Se a descrição for indefinida, salve como NULL ou uma string vazia
     const finalDescription = description !== undefined ? description : null;
 
     const sql = `
@@ -234,6 +279,5 @@ router.put("/veiculos/:id/manutencao", (req, res) => {
         res.status(200).json({ message: "Status da manutenção atualizado com sucesso!" });
     });
 });
-
 
 module.exports = router;

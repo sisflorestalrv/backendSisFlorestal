@@ -62,6 +62,8 @@ const loginController = {
             message: "Login bem-sucedido",
             token: token,
             user: {
+              // Adicione a linha abaixo
+              username: user.username, 
               tipo_usuario: user.tipo_usuario,
               foto_perfil_url: user.foto_perfil_url
             }

@@ -72,38 +72,51 @@ router.get("/usuarios", adminOnly, (req, res) => {
     });
 });
 
-// Rota para editar um usuário (Admin) - Sem alterações na senha aqui
-router.put("/usuarios/:id", adminOnly, profileUpload.single('foto_perfil'), (req, res) => {
+// Rota para editar um usuário (Admin) - VERSÃO CORRIGIDA E COMPLETA
+router.put("/usuarios/:id", adminOnly, profileUpload.single('foto_perfil'), async (req, res) => {
     const { id } = req.params;
-    const { username, tipo_usuario } = req.body;
+    // 1. Agora também lemos a 'password' do corpo da requisição
+    const { username, tipo_usuario, password } = req.body;
 
     if (!username || !tipo_usuario) {
         return res.status(400).json({ error: "Nome de usuário e tipo são obrigatórios." });
     }
 
-    db.query("SELECT foto_perfil_url FROM usuarios WHERE id = ?", [id], (err, results) => {
-        if (err) return res.status(500).json({ error: err.message });
-        if (results.length === 0) return res.status(404).json({ error: "Usuário não encontrado." });
-
-        const oldFotoUrl = results[0].foto_perfil_url;
+    try {
+        const [users] = await db.promise().query("SELECT foto_perfil_url FROM usuarios WHERE id = ?", [id]);
+        if (users.length === 0) {
+            if (req.file) fs.unlinkSync(req.file.path);
+            return res.status(404).json({ error: "Usuário não encontrado." });
+        }
+        
+        const oldFotoUrl = users[0].foto_perfil_url;
         const fieldsToUpdate = { username, tipo_usuario };
+
         if (req.file) {
             fieldsToUpdate.foto_perfil_url = `/uploads/perfis/${req.file.filename}`;
         }
+        
+        // 2. Se uma nova senha foi enviada, geramos o hash dela
+        if (password && password.trim() !== '') {
+            const saltRounds = 10;
+            fieldsToUpdate.password = await bcrypt.hash(password, saltRounds);
+        }
 
         const sql = "UPDATE usuarios SET ? WHERE id = ?";
-        db.query(sql, [fieldsToUpdate, id], (err, result) => {
-            if (err) {
-                if (req.file) fs.unlinkSync(req.file.path);
-                return res.status(500).json({ error: err.message });
-            }
-            if (req.file && oldFotoUrl) {
-                const oldFotoPath = path.join(__dirname, '..', 'public', oldFotoUrl);
-                if (fs.existsSync(oldFotoPath)) fs.unlinkSync(oldFotoPath);
-            }
-            res.status(200).json({ message: "Usuário atualizado com sucesso." });
-        });
-    });
+        await db.promise().query(sql, [fieldsToUpdate, id]);
+
+        if (req.file && oldFotoUrl) {
+            const oldFotoPath = path.join(__dirname, '..', 'public', oldFotoUrl);
+            if (fs.existsSync(oldFotoPath)) fs.unlinkSync(oldFotoPath);
+        }
+        
+        res.status(200).json({ message: "Usuário atualizado com sucesso." });
+
+    } catch (error) {
+        if (req.file) fs.unlinkSync(req.file.path);
+        console.error("Erro ao atualizar usuário:", error);
+        return res.status(500).json({ error: "Erro interno ao atualizar o usuário." });
+    }
 });
 
 // Rota para excluir um usuário (Admin) - Sem alterações
