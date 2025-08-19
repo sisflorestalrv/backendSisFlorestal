@@ -14,6 +14,25 @@ router.get("/imoveis", (req, res) => {
   });
 });
 
+
+// NOVA ROTA DE ESTATÍSTICAS PARA O PAINEL
+router.get("/imoveis/stats", (req, res) => {
+  const sql = `
+    SELECT
+      COUNT(id) AS totalImoveis,
+      SUM(CASE WHEN arrendatario IS NULL OR arrendatario = '' THEN 1 ELSE 0 END) AS proprios,
+      SUM(CASE WHEN arrendatario IS NOT NULL AND arrendatario != '' THEN 1 ELSE 0 END) AS arrendados
+    FROM imoveis;
+  `;
+  db.query(sql, (err, results) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    // Retorna o primeiro (e único) objeto do array de resultados
+    res.json(results[0]);
+  });
+});
+
 // Rota para obter os detalhes de um imóvel pelo ID
 router.get("/imoveis/:id", (req, res) => {
   const { id } = req.params;
