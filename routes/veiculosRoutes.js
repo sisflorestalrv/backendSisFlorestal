@@ -54,13 +54,7 @@ router.get("/frota/stats", authMiddleware, async (req, res) => {
     }
 });
 
-
-// Função para remover a formatação da moeda (ex: "R$ 1.234,56" -> 1234.56)
-const parseCurrency = (value) => {
-    if (typeof value !== 'string') return value;
-    const number = parseFloat(value.replace('R$', '').replace(/\./g, '').replace(',', '.').trim());
-    return isNaN(number) ? 0 : number;
-};
+// A função parseCurrency não é mais necessária neste contexto e foi removida.
 
 // --- Rota para buscar todos os motoristas (ID e Nome Completo) ---
 router.get("/motoristas", authMiddleware, (req, res) => { // Adicionado authMiddleware aqui também por segurança
@@ -89,12 +83,13 @@ router.post("/veiculos", authMiddleware, (req, res) => { // Adicionado authMiddl
     const {
         tipoVeiculo, marca, modelo, anoFabricacao, anoModelo,
         placa, renavam, chassi, cor, potenciaMotor,
-        quilometragem, tipoCombustivel, capacidadeTanque, dataAquisicao,
-        valorAquisicao, codigo_cc, observacoes, motorista_id,
+        quilometragem, tipoCombustivel, capacidadeTanque, /* dataAquisicao, valorAquisicao, - REMOVIDO */
+        codigo_cc, observacoes, motorista_id,
         vencimentoAET, vencimentoCronotacografo, vencimentoDocumentos
     } = req.body;
 
-    if (!tipoVeiculo || !marca || !modelo || !anoFabricacao || !anoModelo || !placa || !renavam || !chassi || !cor || !quilometragem || !tipoCombustivel || !capacidadeTanque || !dataAquisicao || !valorAquisicao) {
+    // Validação atualizada
+    if (!tipoVeiculo || !marca || !modelo || !anoFabricacao || !anoModelo || !placa || !renavam || !chassi || !cor || !quilometragem || !tipoCombustivel || !capacidadeTanque) {
         return res.status(400).json({ error: "Todos os campos obrigatórios devem ser preenchidos." });
     }
 
@@ -102,9 +97,10 @@ router.post("/veiculos", authMiddleware, (req, res) => { // Adicionado authMiddl
         INSERT INTO veiculos (
             tipoVeiculo, marca, modelo, anoFabricacao, anoModelo, placa, renavam, 
             chassi, cor, potenciaMotor, quilometragem, tipoCombustivel, capacidadeTanque, 
-            dataAquisicao, valorAquisicao, codigo_cc, observacoes, motorista_id,
+            /* dataAquisicao, valorAquisicao, - REMOVIDO */
+            codigo_cc, observacoes, motorista_id,
             vencimentoAET, vencimentoCronotacografo, vencimentoDocumentos
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const values = [
@@ -112,8 +108,8 @@ router.post("/veiculos", authMiddleware, (req, res) => { // Adicionado authMiddl
         placa, renavam, chassi, cor, 
         potenciaMotor || null,
         quilometragem,
-        tipoCombustivel, capacidadeTanque, dataAquisicao,
-        parseCurrency(valorAquisicao),
+        tipoCombustivel, capacidadeTanque, 
+        /* dataAquisicao, parseCurrency(valorAquisicao), - REMOVIDO */
         codigo_cc || null,
         observacoes,
         motorista_id || null,
@@ -201,8 +197,8 @@ router.put("/veiculos/:id", authMiddleware, (req, res) => { // Adicionado authMi
     const {
         tipoVeiculo, marca, modelo, anoFabricacao, anoModelo,
         placa, renavam, chassi, cor, potenciaMotor,
-        quilometragem, tipoCombustivel, capacidadeTanque, dataAquisicao,
-        valorAquisicao, codigo_cc, observacoes, motorista_id,
+        quilometragem, tipoCombustivel, capacidadeTanque,
+        codigo_cc, observacoes, motorista_id,
         vencimentoAET, vencimentoCronotacografo, vencimentoDocumentos
     } = req.body;
 
@@ -210,23 +206,27 @@ router.put("/veiculos/:id", authMiddleware, (req, res) => { // Adicionado authMi
         return res.status(400).json({ error: "Campos essenciais como tipo, marca, modelo, placa e quilometragem são obrigatórios." });
     }
 
+    // CORREÇÃO APLICADA AQUI:
+    // A query SQL foi ajustada para não incluir mais os campos removidos.
+    // Agora temos 19 assignments no SET e 1 no WHERE, totalizando 20 placeholders '?'.
     const sql = `
         UPDATE veiculos SET
             tipoVeiculo = ?, marca = ?, modelo = ?, anoFabricacao = ?, anoModelo = ?,
             placa = ?, renavam = ?, chassi = ?, cor = ?, potenciaMotor = ?, 
-            quilometragem = ?, tipoCombustivel = ?, capacidadeTanque = ?, dataAquisicao = ?,
-            valorAquisicao = ?, codigo_cc = ?, observacoes = ?, motorista_id = ?,
+            quilometragem = ?, tipoCombustivel = ?, capacidadeTanque = ?,
+            codigo_cc = ?, observacoes = ?, motorista_id = ?,
             vencimentoAET = ?, vencimentoCronotacografo = ?, vencimentoDocumentos = ?
         WHERE id = ?
     `;
 
+    // CORREÇÃO APLICADA AQUI:
+    // O array de valores também foi ajustado para ter 20 itens, correspondendo aos '?' da query.
     const values = [
         tipoVeiculo, marca, modelo, anoFabricacao, anoModelo,
         placa, renavam, chassi, cor, 
         potenciaMotor || null,
         quilometragem,
-        tipoCombustivel, capacidadeTanque, dataAquisicao,
-        parseCurrency(valorAquisicao),
+        tipoCombustivel, capacidadeTanque,
         codigo_cc || null,
         observacoes,
         motorista_id || null,
@@ -238,10 +238,12 @@ router.put("/veiculos/:id", authMiddleware, (req, res) => { // Adicionado authMi
 
     db.query(sql, values, (err, result) => {
         if (err) {
+            // Este é o erro que você provavelmente está recebendo no console do seu servidor
+            console.error("Erro ao atualizar veículo:", err); 
+
             if (err.code === 'ER_DUP_ENTRY') {
                 return res.status(409).json({ error: `Dados duplicados. A placa, renavam ou chassi já pertencem a outro veículo.` });
             }
-            console.error("Erro ao atualizar veículo:", err);
             return res.status(500).json({ error: "Erro interno ao atualizar o veículo." });
         }
         if (result.affectedRows === 0) {
