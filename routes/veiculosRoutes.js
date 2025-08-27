@@ -110,23 +110,31 @@ router.post("/veiculos", authMiddleware, (req, res) => {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
-    // CÓDIGO CORRIGIDO
-const values = [
-    tipoVeiculo, marca, modelo, anoFabricacao || null, anoModelo || null,
-    placa, renavam || null, chassi, cor || null,
-    // CORREÇÃO: Garante que 'potenciaMotor' seja null para SEMIRREBOQUE
-    tipoVeiculo === 'SEMIRREBOQUE' ? null : potenciaMotor || null, 
-    quilometragem,
-    tipoVeiculo === 'SEMIRREBOQUE' ? null : tipoCombustivel,
-    tipoVeiculo === 'SEMIRREBOQUE' ? null : capacidadeTanque,
-    codigo_cc || null,
-    observacoes || null,
-    motorista_id || null,
-    vencimentoAET || null,
-    vencimento_aet_estadual || null,
-    vencimentoCronotacografo || null,
-    vencimentoDocumentos || null
-];
+    const values = [
+        tipoVeiculo,
+        marca,
+        modelo,
+        // Converte valores "falsy" (como '' ou 0) para null, o que pode ser indesejado para anos.
+        // A lógica `|| null` é suficiente aqui se o campo for obrigatório no front-end.
+        anoFabricacao || null, 
+        anoModelo || null,
+        placa,
+        renavam || null,
+        chassi,
+        cor,
+        // Lógica corrigida: se for SEMIRREBOQUE ou se o campo estiver vazio/nulo, salve como NULL.
+        tipoVeiculo === 'SEMIRREBOQUE' || !potenciaMotor ? null : potenciaMotor,
+        quilometragem,
+        tipoVeiculo === 'SEMIRREBOQUE' || !tipoCombustivel ? null : tipoCombustivel,
+        tipoVeiculo === 'SEMIRREBOQUE' || !capacidadeTanque ? null : capacidadeTanque,
+        codigo_cc || null,
+        observacoes || null,
+        motorista_id || null, // O `|| null` já trata o `''` do "Nenhum motorista" corretamente.
+        vencimentoAET || null,
+        vencimento_aet_estadual || null,
+        vencimentoCronotacografo || null,
+        vencimentoDocumentos || null
+    ];
 
     db.query(sql, values, (err, result) => {
         if (err) {
