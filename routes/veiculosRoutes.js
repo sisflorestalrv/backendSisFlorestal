@@ -110,22 +110,23 @@ router.post("/veiculos", authMiddleware, (req, res) => {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
-    const values = [
-        tipoVeiculo, marca, modelo, anoFabricacao || null, anoModelo || null,
-        placa, renavam || null, chassi, cor || null, 
-        potenciaMotor || null,
-        quilometragem,
-        // Se for SEMIRREBOQUE, envia null, caso contrário, envia o valor.
-        tipoVeiculo === 'SEMIRREBOQUE' ? null : tipoCombustivel,
-        tipoVeiculo === 'SEMIRREBOQUE' ? null : capacidadeTanque,
-        codigo_cc || null,
-        observacoes || null,
-        motorista_id || null,
-        vencimentoAET || null,
-        vencimento_aet_estadual || null,
-        vencimentoCronotacografo || null,
-        vencimentoDocumentos || null
-    ];
+    // CÓDIGO CORRIGIDO
+const values = [
+    tipoVeiculo, marca, modelo, anoFabricacao || null, anoModelo || null,
+    placa, renavam || null, chassi, cor || null,
+    // CORREÇÃO: Garante que 'potenciaMotor' seja null para SEMIRREBOQUE
+    tipoVeiculo === 'SEMIRREBOQUE' ? null : potenciaMotor || null, 
+    quilometragem,
+    tipoVeiculo === 'SEMIRREBOQUE' ? null : tipoCombustivel,
+    tipoVeiculo === 'SEMIRREBOQUE' ? null : capacidadeTanque,
+    codigo_cc || null,
+    observacoes || null,
+    motorista_id || null,
+    vencimentoAET || null,
+    vencimento_aet_estadual || null,
+    vencimentoCronotacografo || null,
+    vencimentoDocumentos || null
+];
 
     db.query(sql, values, (err, result) => {
         if (err) {
