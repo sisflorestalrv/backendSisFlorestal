@@ -91,26 +91,30 @@ router.post("/veiculos", authMiddleware, (req, res) => {
         }
     }
 
-    // <<< ALTERAÇÃO 2: VALIDAÇÃO CONDICIONAL PARA PLACA, RENAVAM, COMBUSTÍVEL E KM/PORÍMETRO >>>
-    if (tipoVeiculo !== 'SEMIRREBOQUE' && tipoVeiculo !== 'MAQUINA') {
+    // Validação condicional para combustível e placa
+    if (tipoVeiculo !== 'SEMIRREBOQUE') { // CORREÇÃO: Removido '&& tipoVeiculo !== 'MAQUINA''
         if (!tipoCombustivel || !capacidadeTanque) {
             return res.status(400).json({ error: "Para este tipo de veículo, o Tipo de Combustível e a Capacidade do Tanque são obrigatórios." });
         }
-        if (!placa) {
+    }
+    
+    // Placa não é obrigatória para MÁQUINA
+    if (tipoVeiculo !== 'MAQUINA' && tipoVeiculo !== 'SEMIRREBOQUE') {
+         if (!placa) {
             return res.status(400).json({ error: "O campo 'placa' é obrigatório para este tipo de veículo." });
         }
     }
 
+    // Validação de horímetro vs quilometragem
     if (tipoVeiculo === 'MAQUINA') {
         if (horimetro === null || horimetro === undefined || horimetro < 0) {
-             return res.status(400).json({ error: "O campo 'porímetro' é obrigatório para máquinas." });
+             return res.status(400).json({ error: "O campo 'horímetro' é obrigatório para máquinas." });
         }
     } else {
          if (quilometragem === null || quilometragem === undefined || quilometragem < 0) {
              return res.status(400).json({ error: "O campo 'quilometragem' é obrigatório." });
         }
     }
-    // <<< FIM DA ALTERAÇÃO 2 >>>
 
     const sql = `
         INSERT INTO veiculos (
@@ -119,7 +123,6 @@ router.post("/veiculos", authMiddleware, (req, res) => {
             codigo_cc, observacoes, motorista_id,
             vencimentoAET, vencimento_aet_estadual,
             vencimentoCronotacografo, vencimentoDocumentos,
-            -- <<< ALTERAÇÃO 3: ADICIONAR CAMPO NO INSERT >>>
             horimetro
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
@@ -130,15 +133,14 @@ router.post("/veiculos", authMiddleware, (req, res) => {
         modelo,
         anoFabricacao || null, 
         anoModelo || null,
-        // <<< ALTERAÇÃO 4: GARANTIR NULL PARA MAQUINA >>>
         tipoVeiculo === 'MAQUINA' ? null : placa,
         tipoVeiculo === 'MAQUINA' ? null : (renavam || null),
         chassi,
         cor,
-        ['SEMIRREBOQUE', 'MAQUINA'].includes(tipoVeiculo) || !potenciaMotor ? null : potenciaMotor,
+        ['SEMIRREBOQUE'].includes(tipoVeiculo) || !potenciaMotor ? null : potenciaMotor,
         tipoVeiculo === 'MAQUINA' ? null : quilometragem,
-        ['SEMIRREBOQUE', 'MAQUINA'].includes(tipoVeiculo) || !tipoCombustivel ? null : tipoCombustivel,
-        ['SEMIRREBOQUE', 'MAQUINA'].includes(tipoVeiculo) || !capacidadeTanque ? null : capacidadeTanque,
+        tipoVeiculo === 'SEMIRREBOQUE' ? null : tipoCombustivel, // CORREÇÃO: Removido 'MAQUINA'
+        tipoVeiculo === 'SEMIRREBOQUE' ? null : capacidadeTanque, // CORREÇÃO: Removido 'MAQUINA'
         codigo_cc || null,
         observacoes || null,
         motorista_id || null,
@@ -146,7 +148,6 @@ router.post("/veiculos", authMiddleware, (req, res) => {
         vencimento_aet_estadual || null,
         vencimentoCronotacografo || null,
         vencimentoDocumentos || null,
-        // <<< ALTERAÇÃO 5: PASSAR VALOR DO PORÍMETRO >>>
         tipoVeiculo === 'MAQUINA' ? horimetro : null
     ];
 
@@ -164,7 +165,6 @@ router.post("/veiculos", authMiddleware, (req, res) => {
 
 // --- Rota para obter todos os veículos (com nome do motorista) ---
 router.get("/veiculos", authMiddleware, (req, res) => {
-    // Nenhuma alteração necessária aqui, o "v.*" já vai incluir o novo campo horimetro
     const sql = `
         SELECT 
             v.*, 
@@ -184,7 +184,6 @@ router.get("/veiculos", authMiddleware, (req, res) => {
 
 // --- Rota para obter um veículo pelo ID ---
 router.get("/veiculos/:id", authMiddleware, (req, res) => {
-    // Nenhuma alteração necessária aqui também
     const { id } = req.params;
     const sql = `
         SELECT 
@@ -235,7 +234,6 @@ router.put("/veiculos/:id", authMiddleware, (req, res) => {
         codigo_cc, observacoes, motorista_id,
         vencimentoAET, vencimento_aet_estadual,
         vencimentoCronotacografo, vencimentoDocumentos,
-        // <<< ALTERAÇÃO 6: RECEBER O NOVO CAMPO >>>
         horimetro
     } = req.body;
 
@@ -246,11 +244,14 @@ router.put("/veiculos/:id", authMiddleware, (req, res) => {
         }
     }
 
-    // <<< ALTERAÇÃO 7: VALIDAÇÃO CONDICIONAL (IGUAL AO POST) >>>
-    if (tipoVeiculo !== 'SEMIRREBOQUE' && tipoVeiculo !== 'MAQUINA') {
+    // Validação condicional
+    if (tipoVeiculo !== 'SEMIRREBOQUE') { // CORREÇÃO: Removido '&& tipoVeiculo !== 'MAQUINA''
         if (!tipoCombustivel || !capacidadeTanque) {
             return res.status(400).json({ error: "Para este tipo de veículo, o Tipo de Combustível e a Capacidade do Tanque são obrigatórios." });
         }
+    }
+
+    if (tipoVeiculo !== 'MAQUINA' && tipoVeiculo !== 'SEMIRREBOQUE') {
          if (!placa) {
             return res.status(400).json({ error: "O campo 'placa' é obrigatório para este tipo de veículo." });
         }
@@ -258,14 +259,13 @@ router.put("/veiculos/:id", authMiddleware, (req, res) => {
     
     if (tipoVeiculo === 'MAQUINA') {
         if (horimetro === null || horimetro === undefined || horimetro < 0) {
-             return res.status(400).json({ error: "O campo 'porímetro' é obrigatório para máquinas." });
+             return res.status(400).json({ error: "O campo 'horímetro' é obrigatório para máquinas." });
         }
     } else {
          if (quilometragem === null || quilometragem === undefined || quilometragem < 0) {
              return res.status(400).json({ error: "O campo 'quilometragem' é obrigatório." });
         }
     }
-    // <<< FIM DA ALTERAÇÃO 7 >>>
 
     const sql = `
         UPDATE veiculos SET
@@ -275,21 +275,19 @@ router.put("/veiculos/:id", authMiddleware, (req, res) => {
             codigo_cc = ?, observacoes = ?, motorista_id = ?,
             vencimentoAET = ?, vencimento_aet_estadual = ?,
             vencimentoCronotacografo = ?, vencimentoDocumentos = ?,
-            -- <<< ALTERAÇÃO 8: ADICIONAR CAMPO NO UPDATE >>>
             horimetro = ?
         WHERE id = ?
     `;
 
     const values = [
         tipoVeiculo, marca, modelo, anoFabricacao || null, anoModelo || null,
-        // <<< ALTERAÇÃO 9: GARANTIR NULL PARA MAQUINA (IGUAL AO POST) >>>
         tipoVeiculo === 'MAQUINA' ? null : placa,
         tipoVeiculo === 'MAQUINA' ? null : (renavam || null),
         chassi, cor || null, 
-        ['SEMIRREBOQUE', 'MAQUINA'].includes(tipoVeiculo) ? null : potenciaMotor || null,
+        ['SEMIRREBOQUE'].includes(tipoVeiculo) ? null : potenciaMotor || null,
         tipoVeiculo === 'MAQUINA' ? null : quilometragem,
-        ['SEMIRREBOQUE', 'MAQUINA'].includes(tipoVeiculo) ? null : tipoCombustivel,
-        ['SEMIRREBOQUE', 'MAQUINA'].includes(tipoVeiculo) ? null : capacidadeTanque,
+        tipoVeiculo === 'SEMIRREBOQUE' ? null : tipoCombustivel, // CORREÇÃO: Removido 'MAQUINA'
+        tipoVeiculo === 'SEMIRREBOQUE' ? null : capacidadeTanque, // CORREÇÃO: Removido 'MAQUINA'
         codigo_cc || null,
         observacoes || null,
         motorista_id || null,
