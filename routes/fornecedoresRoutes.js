@@ -83,5 +83,22 @@ router.delete("/fornecedores/:id", authMiddleware, (req, res) => {
     });
 });
 
+// Rota para buscar UM fornecedor pelo ID
+router.get("/fornecedores/:id", authMiddleware, (req, res) => {
+    const { id } = req.params;
+    const sql = "SELECT * FROM fornecedores WHERE id = ?";
+
+    db.query(sql, [id], (err, result) => {
+        if (err) {
+            console.error("Erro ao buscar fornecedor:", err);
+            return res.status(500).json({ error: "Erro interno ao buscar o fornecedor." });
+        }
+        if (result.length === 0) {
+            return res.status(404).json({ message: "Fornecedor não encontrado." });
+        }
+        res.json(result[0]); // Retorna o primeiro (e único) resultado
+    });
+});
+
 
 module.exports = router;

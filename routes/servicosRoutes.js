@@ -149,8 +149,6 @@ router.put("/servicos/:servicoId", authMiddleware, async (req, res) => {
 
 
 // --- Rota para DELETAR um serviço ---
-// Graças ao 'ON DELETE CASCADE' no banco de dados, deletar o serviço principal
-// automaticamente deletará todos os seus itens associados.
 router.delete("/servicos/:servicoId", authMiddleware, (req, res) => {
     const { servicoId } = req.params;
     const sql = "DELETE FROM servicos_veiculo WHERE id = ?";
