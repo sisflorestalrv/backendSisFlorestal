@@ -1,6 +1,7 @@
 const express = require("express");
 const db = require("../config/db");
-const bcrypt = require('bcrypt'); // 1. Importe o bcrypt
+const bcrypt = require('bcrypt'); // 1. Importe o bcry
+const uaParser = require('ua-parser-js'); 
 const { profileUpload } = require('../config/multerConfig'); 
 const fs = require('fs');
 const path = require('path');
